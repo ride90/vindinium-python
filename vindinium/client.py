@@ -104,16 +104,20 @@ class Client:
             while not finished:
                 turn += 1
 
-                # Time the bot's move
-                start_time = time.time()
+                # Time the bot's move (only if debug is enabled)
+                if self.debug:
+                    start_time = time.time()
+
                 action = bot._move(state)
+
+                if self.debug:
+                    elapsed_time = time.time() - start_time
+
                 state = self.__move(play_url, action)
 
-                elapsed_time = time.time() - start_time
                 # Debug logging
                 if self.debug:
                     print(f"Turn {turn}: {action} (took {elapsed_time:.3f}s)")
-
 
                 finished = state["game"]["finished"]
 
