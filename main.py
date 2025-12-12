@@ -5,6 +5,7 @@ using the vindinium client library.
 """
 
 import vindinium
+from settings import settings
 
 
 def main():
@@ -13,17 +14,29 @@ def main():
     Creates a Vindinium client configured for training mode and runs
     a MinerBot instance. The game replay URL is printed after completion.
     """
-    # Create a vindinium client
+    # Validate settings
+    try:
+        settings.validate()
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+        print("\nPlease create a .env file based on .env.example")
+        return
+
+    # Display current settings
+    settings.display()
+
+    # Create a vindinium client using settings from .env
     client = vindinium.Client(
-        server="http://localhost:9000",
-        key="<my key>",
+        server=settings.SERVER,
+        key=settings.KEY,
         mode="training",
-        n_turns=300,
+        n_turns=10,
         open_browser=True,
     )
 
+    print(f"\nStarting game with {settings.HERO_NAME}...")
     url = client.run(vindinium.bots.MinerBot())
-    print("Replay in:", url)
+    print(f"\n🎮 Replay at: {url}")
 
 
 if __name__ == "__main__":

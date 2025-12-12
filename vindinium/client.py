@@ -30,12 +30,11 @@ class Client:
             client.run(MyBot())
 
     Attributes:
-        key (str): the bot's key, you must create a key in the site.
+        key (str): the bot's key, you must create a key on your Vindinium server.
         mode (str): the game mode ('training' or 'arena'), defaults to 'training'.
         n_turns (int): number of turns in a game. Only valid in training mode;
           arena is fixed to 300. Defaults to 300.
-        server (str): the address of the server. Defaults to
-          'http://vindinium.org'.
+        server (str): the address of the Vindinium server. Required parameter.
         open_browser (bool): if True, the client will open the default browser
           to show the current game. Defaults to False.
         timeout_move (int): movement timeout in seconds. Defaults to 15 seconds.
@@ -48,22 +47,27 @@ class Client:
         key,
         mode="training",
         n_turns=300,
-        server="http://vindinium.org",
+        server=None,
         open_browser=False,
     ):
         """Constructor.
 
         Args:
-            key (str): the bot's key, you must create a key in the site.
+            key (str): the bot's key, you must create a key on your Vindinium server.
             mode (str): the game mode ('training' or 'arena'), defaults to
              'training'.
             n_turns (int): number of turns in a game. Only valid in training
               mode; arena is fixed to 300. Defaults to 300.
-            server (str): the address of the server. Defaults to
-              'http://vindinium.org'.
+            server (str): the address of the Vindinium server. Required parameter.
             open_browser (bool): if True, the client will open the default
               browser to show the current game. Defaults to False.
         """
+
+        if server is None:
+            raise ValueError(
+                "Server URL is required. Please provide the server parameter "
+                "or use settings.SERVER from your .env configuration."
+            )
 
         self.key = key
         self.mode = mode

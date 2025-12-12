@@ -6,6 +6,8 @@ A Python 3.13+ client for Vindinium - an AI programming challenge game.
 
 Vindinium is an online turn-based competition where you control a bot to compete against other bots. Four heroes battle on a map to accumulate the most gold by capturing mines, fighting opponents, and managing resources.
 
+**Note:** You'll need access to a Vindinium server to play. Configure the server URL in your `.env` file.
+
 ## Features
 
 This library provides a complete framework for building Vindinium bots:
@@ -85,29 +87,36 @@ pip install -r requirements.txt
 
 ### 4. Get Your API Key
 
-1. Go to vindinium game server
+1. Go to your Vindinium server
 2. Register or log in
-3. Copy your API key
+3. Click "Create a bot" and enter a name
+4. Copy your API key
 
-### 5. Configure and Run
+### 5. Configure Your Settings
 
-Edit `main.py` and replace `<my key>` with your actual API key:
+Create a `.env` file from the example:
 
-```python
-client = vindinium.Client(
-    server='<https://your-vindinium-server-url>',  # Use the current server
-    key='YOUR_API_KEY_HERE',                     # Your API key
-    mode='training',                             # 'training' or 'arena'
-    n_turns=300,                                 # Number of turns (training only)
-    open_browser=True                            # Open browser to watch
-)
+```bash
+cp .env.example .env
 ```
 
-Then run:
+Edit `.env` and add your server URL and API key:
+
+```bash
+VINDINIUM_SERVER=<your-vindinium-server-url>
+VINDINIUM_KEY=<your-api-key>
+VINDINIUM_HERO_NAME=MyBot
+```
+
+See [Configuration Guide](docs/CONFIGURATION.md) for details.
+
+### 6. Run Your Bot
 
 ```bash
 python main.py
 ```
+
+The settings will be loaded automatically from your `.env` file.
 
 ## Quick Start
 
