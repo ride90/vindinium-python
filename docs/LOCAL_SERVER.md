@@ -54,9 +54,9 @@ You should see the Vindinium web interface.
 Edit your `.env` file:
 
 ```bash
-VINDINIUM_SERVER=http://localhost
-VINDINIUM_KEY=<your-api-key-from-step-3>
-VINDINIUM_HERO_NAME=MyBot
+SERVER=http://localhost
+KEY=<your-api-key-from-step-3>
+HERO_NAME=MyBot
 ```
 
 ### 5. Run Your Bot
@@ -166,7 +166,7 @@ ports:
   - "8080:9000"  # Change 80 to 8080
 ```
 
-Then use `VINDINIUM_SERVER=http://localhost:8080` in your `.env`.
+Then use `SERVER=http://localhost:8080` in your `.env`.
 
 ### Server Won't Start
 
@@ -209,7 +209,7 @@ vindinium:
 
 Then update your `.env`:
 ```bash
-VINDINIUM_SERVER=http://localhost:9000
+SERVER=http://localhost:9000
 ```
 
 ### Persistent Data Location

@@ -18,13 +18,16 @@ Open `.env` in your text editor and update the values:
 
 ```bash
 # Vindinium server URL
-VINDINIUM_SERVER=<your-vindinium-server-url>
+SERVER=<your-vindinium-server-url>
 
 # Your bot's API key (get from the server)
-VINDINIUM_KEY=<your-api-key>
+KEY=<your-api-key>
 
 # Your hero's display name
-VINDINIUM_HERO_NAME=MyAwesomeBot
+HERO_NAME=MyAwesomeBot
+
+# Bot to use (RandomBot, MinerBot, AggressiveBot, MinimaxBot)
+BOT=MinerBot
 ```
 
 ### 3. Get Your API Key
@@ -33,11 +36,11 @@ VINDINIUM_HERO_NAME=MyAwesomeBot
 2. Click **"Create a bot"**
 3. Enter your bot name
 4. Copy the API key
-5. Paste it into your `.env` file as `VINDINIUM_KEY`
+5. Paste it into your `.env` file as `KEY`
 
 ## Configuration Settings
 
-### `VINDINIUM_SERVER`
+### `SERVER`
 
 The Vindinium server URL.
 
@@ -45,7 +48,7 @@ The Vindinium server URL.
 - **Example:** `https://your-vindinium-server.com`
 - **Local server:** `http://localhost:9000` (if running your own server)
 
-### `VINDINIUM_KEY`
+### `KEY`
 
 Your bot's API key from the Vindinium server.
 
@@ -53,11 +56,26 @@ Your bot's API key from the Vindinium server.
 - **Example:** `abc123xyz`
 - **Where to get it:** Your Vindinium server → Create a bot
 
-### `VINDINIUM_HERO_NAME`
+### `HERO_NAME`
 
 Your hero's display name (used for logging and display in your code).
 
 - **Default:** `MyBot`
+
+### `BOT`
+
+The bot class to use when running `main.py`.
+
+- **Required:** No
+- **Default:** `MinerBot`
+- **Available bots:**
+  - `RandomBot` - Makes random moves
+  - `MinerBot` - Focuses on capturing mines
+  - `AggressiveBot` - Attacks other heroes
+  - `MinimaxBot` - Uses minimax algorithm with game tree search
+  - `BaseBot` - Base class (you need to extend it)
+  - `RawBot` - Raw interface (you need to extend it)
+- **Example:** `BOT=AggressiveBot`
 - **Example:** `AggressiveMiner`
 - **Note:** The actual in-game name is set on the Vindinium server when you create your bot
 
@@ -126,7 +144,7 @@ The `.env.example` file contains placeholder values and is safe to commit. It se
 
 ## Troubleshooting
 
-### "VINDINIUM_KEY is not set"
+### "KEY is not set"
 
 You need to create a `.env` file with your API key:
 
@@ -144,7 +162,7 @@ Make sure:
 
 ### Wrong Server URL
 
-If you're getting connection errors, check that `VINDINIUM_SERVER` is correct:
+If you're getting connection errors, check that `SERVER` is correct:
 - Make sure you have the correct server URL from your Vindinium administrator
 - For local servers: `http://localhost:9000`
 
@@ -154,13 +172,16 @@ If you're getting connection errors, check that `VINDINIUM_SERVER` is correct:
 # Vindinium Game Settings
 
 # Server URL
-VINDINIUM_SERVER=<your-vindinium-server-url>
+SERVER=<your-vindinium-server-url>
 
 # Your API key from your Vindinium server
-VINDINIUM_KEY=<your-api-key>
+KEY=<your-api-key>
 
 # Your hero's name (for display/logging)
-VINDINIUM_HERO_NAME=MyAwesomeBot
+HERO_NAME=MyAwesomeBot
+
+# Bot to use
+BOT=MinerBot
 ```
 
 ## Advanced Usage
@@ -182,9 +203,40 @@ from settings import settings
 # Now settings will use values from .env.bot1
 ```
 
-### Override Settings
+### Override Settings with Environment Variables
 
-You can override settings in code if needed:
+You can override any setting using environment variables without editing `.env`:
+
+```bash
+# Run with a different bot
+BOT=AggressiveBot python main.py
+
+# Run with different bot and hero name
+BOT=MinimaxBot HERO_NAME=SmartBot python main.py
+
+# Override multiple settings
+SERVER=http://localhost KEY=test123 BOT=RandomBot python main.py
+```
+
+This is perfect for running multiple bots simultaneously:
+
+```bash
+# Terminal 1 - MinerBot
+BOT=MinerBot python main.py
+
+# Terminal 2 - AggressiveBot
+BOT=AggressiveBot python main.py
+
+# Terminal 3 - MinimaxBot
+BOT=MinimaxBot python main.py
+
+# Terminal 4 - RandomBot
+BOT=RandomBot python main.py
+```
+
+### Override Settings in Code
+
+You can also override settings in code if needed:
 
 ```python
 from settings import settings
@@ -192,6 +244,7 @@ from settings import settings
 # Override for testing
 settings.SERVER = 'http://localhost:9000'
 settings.HERO_NAME = 'TestBot'
+settings.BOT = 'AggressiveBot'
 ```
 
 ## See Also

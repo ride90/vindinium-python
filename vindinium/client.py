@@ -5,6 +5,7 @@ with the Vindinium server, including game initialization and move submission.
 """
 
 import logging
+import time
 import webbrowser
 import requests
 
@@ -49,6 +50,7 @@ class Client:
         n_turns=300,
         server=None,
         open_browser=False,
+        debug=False,
     ):
         """Constructor.
 
@@ -61,6 +63,7 @@ class Client:
             server (str): the address of the Vindinium server. Required parameter.
             open_browser (bool): if True, the client will open the default
               browser to show the current game. Defaults to False.
+            debug (bool): if True, logs each move and timing information. Defaults to False.
         """
 
         if server is None:
@@ -74,6 +77,7 @@ class Client:
         self.n_turns = n_turns
         self.server = server
         self.open_browser = open_browser
+        self.debug = debug
         self.timeout_move = 15
         self.timeout_connection = 10 * 60
 
@@ -96,9 +100,25 @@ class Client:
 
             # Move
             finished = False
+            turn = 0
             while not finished:
+                turn += 1
+
+                # Time the bot's move (only if debug is enabled)
+                if self.debug:
+                    start_time = time.time()
+
                 action = bot._move(state)
+
+                if self.debug:
+                    elapsed_time = time.time() - start_time
+
                 state = self.__move(play_url, action)
+
+                # Debug logging
+                if self.debug:
+                    print(f"Turn {turn}: {action} (took {elapsed_time:.3f}s)")
+
                 finished = state["game"]["finished"]
 
             return state["viewUrl"]

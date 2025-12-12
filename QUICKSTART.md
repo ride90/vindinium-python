@@ -43,9 +43,9 @@ cp .env.example .env
 
 Edit `.env`:
 ```bash
-VINDINIUM_SERVER=http://localhost
-VINDINIUM_KEY=<paste-your-api-key-here>
-VINDINIUM_HERO_NAME=MyBot
+SERVER=http://localhost
+KEY=<paste-your-api-key-here>
+HERO_NAME=MyBot
 ```
 
 ## Step 5: Run Your Bot
@@ -106,7 +106,7 @@ cd docker && ./restore-db.sh
 ## Troubleshooting
 
 **Port 80 in use?**
-Edit `docker/docker-compose.yml` and change port 80 to 8080, then use `VINDINIUM_SERVER=http://localhost:8080`
+Edit `docker/docker-compose.yml` and change port 80 to 8080, then use `SERVER=http://localhost:8080`
 
 **Server won't start?**
 Make sure Docker Desktop is running: `docker ps`
