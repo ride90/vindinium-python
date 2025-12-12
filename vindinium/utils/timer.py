@@ -1,66 +1,83 @@
+"""Timer utility for measuring code execution time.
+
+This module provides a Timer class that can be used as a context manager
+or with tic/toc methods similar to MATLAB.
+"""
+
 import time
 
 __all__ = ['Timer']
 
-class Timer(object):
-    '''Timer helper.
 
-    A timer object helps to verify how much time has been taken to execute some
-    code.
+class Timer:
+    """Timer helper for measuring code execution time.
+
+    A timer object helps to measure how much time has been taken to execute
+    some code.
 
     Example:
-        You can use this class in two ways. First as a with statement::
+        You can use this class in two ways. First as a context manager::
 
             with Timer() as timer:
                 # your code here
-            print timer.elapsed
+            print(timer.elapsed)
 
-        Notice that you can pass ``True`` as argument to Timer in order to 
-        allow it to print the elapsed time when the with finishes.
-  
-        Alternatively, you can use Timer like the tic toc functions of Matlab::
-  
+        You can pass ``True`` as argument to Timer to automatically
+        print the elapsed time when the context exits.
+
+        Alternatively, you can use Timer like the tic/toc functions of MATLAB::
+
             timer = Timer()
             timer.tic()
             # your code here
-            print timer.toc()
+            print(timer.toc())
 
     Attributes:
-        elapsed (float): the elapsed time between ``tic()`` and ``toc()``.
-    '''
+        elapsed (float): The elapsed time between ``tic()`` and ``toc()``.
+    """
 
     def __init__(self, do_print=False):
-        '''Constructor.
+        """Initialize the timer.
 
         Args:
-            do_print (bool): whether timer should print the result after 
-              ``with`` ends or not. Default to False.
-        '''
+            do_print (bool): Whether timer should print the result after
+                the context manager exits. Defaults to False.
+        """
         self._do_print = do_print
         self._start_time = 0
         self.elapsed = 0
 
     def __enter__(self):
-        '''Enters with'''
+        """Enter the context manager and start the timer.
+
+        Returns:
+            Timer: This timer instance.
+        """
         self.tic()
         return self
 
     def __exit__(self, type, value, traceback):
-        '''Leaves with'''
+        """Exit the context manager and stop the timer.
+
+        Args:
+            type: Exception type (if any).
+            value: Exception value (if any).
+            traceback: Exception traceback (if any).
+        """
         self.toc()
 
         if self._do_print:
-            print 'Elapsed time is %f seconds.'%self.elapsed
+            print('Elapsed time is %f seconds.' % self.elapsed)
 
     def tic(self):
-        '''Start the timer.'''
+        """Start the timer."""
         self._start_time = time.time()
 
     def toc(self):
-        '''Stops the timer and returns the elapsed time.
+        """Stop the timer and return the elapsed time.
 
-        Returns
-            (float) the elapsed time.
-        '''
+        Returns:
+            float: The elapsed time in seconds.
+        """
         self.elapsed = time.time() - self._start_time
         return self.elapsed

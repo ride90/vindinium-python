@@ -1,10 +1,17 @@
+"""Vindinium HTTP client for connecting to the game server.
+
+This module provides the Client class which handles all communication
+with the Vindinium server, including game initialization and move submission.
+"""
+
 import logging
 import webbrowser
 import requests
 
 __all__ = ['Client']
 
-class Client(object):
+
+class Client:
     '''Base client for Vindinium.
     
     Example:
@@ -155,6 +162,9 @@ class Client(object):
             raise IOError('Connection error, check log for the message.')
 
     def __disconnect(self):
-        '''Close the session.'''
-        if (self.__session):
+        """Close the session.
+
+        Properly closes the HTTP session to free up resources.
+        """
+        if self.__session:
             self.__session.close()

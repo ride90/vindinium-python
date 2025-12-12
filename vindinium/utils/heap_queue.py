@@ -1,38 +1,45 @@
+"""Priority queue implementation using heapq.
+
+This module provides a priority queue implementation for use in
+pathfinding algorithms like A*.
+"""
+
 import heapq
 
 __all__ = ['HeapQueue']
 
-class HeapQueue(object):
-    '''A priority queue implementation (it uses the heapq builtin module).
+
+class HeapQueue:
+    """A priority queue implementation using the heapq builtin module.
 
     Based on http://www.redblobgames.com/pathfinding/a-star/implementation.html
-    '''
+    """
 
     def __init__(self):
-        '''Constructor.'''
+        """Initialize an empty priority queue."""
         self._queue = []
-    
+
     def is_empty(self):
-        '''Verifies if the queue is empty or not.
-        
+        """Check if the queue is empty.
+
         Returns:
-            (bool) whether if the queue is empty or not.
-        '''
+            bool: True if the queue is empty, False otherwise.
+        """
         return len(self._queue) == 0
-    
+
     def push(self, item, priority):
-        '''Pushes an item to the queue, given a priority.
+        """Push an item to the queue with a given priority.
 
         Args:
-            item (object) any object.
-            priority (int) a priority value.
-        '''
+            item (object): Any object to store.
+            priority (int): A priority value (lower values have higher priority).
+        """
         heapq.heappush(self._queue, (priority, item))
-    
+
     def pop(self):
-        '''Pops an item from the queue.
+        """Pop the item with the highest priority from the queue.
 
         Returns:
-            (object) the stored item.
-        '''
+            object: The stored item with the highest priority.
+        """
         return heapq.heappop(self._queue)[1]
