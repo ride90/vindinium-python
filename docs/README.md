@@ -71,10 +71,10 @@ import vindinium
 
 # Create your bot
 class MyBot(vindinium.bots.BaseBot):
-    def start(self):
+    def _do_start(self):
         self.search = vindinium.ai.AStar(self.game.map)
-    
-    def move(self):
+
+    def _do_move(self):
         if self.hero.life < 30:
             return self.go_to_nearest_tavern()
         return self.go_to_nearest_mine()

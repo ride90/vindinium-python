@@ -23,7 +23,7 @@ import random
 import vindinium
 
 class RandomBot(vindinium.bots.BaseBot):
-    def move(self):
+    def _do_move(self):
         moves = [
             vindinium.STAY,
             vindinium.NORTH,
@@ -39,10 +39,10 @@ class RandomBot(vindinium.bots.BaseBot):
 Use A* pathfinding to navigate to a specific location:
 
 ```python
-def start(self):
+def _do_start(self):
     self.search = vindinium.ai.AStar(self.game.map)
 
-def move(self):
+def _do_move(self):
     return self.go_to(3, 4)
 
 def go_to(self, target_x, target_y):
@@ -214,27 +214,27 @@ A bot that balances mining, healing, and combat:
 import vindinium
 
 class BalancedBot(vindinium.bots.BaseBot):
-    def start(self):
+    def _do_start(self):
         """Initialize pathfinding."""
         self.search = vindinium.ai.AStar(self.game.map)
-    
-    def move(self):
+
+    def _do_move(self):
         """Main decision logic."""
         # Critical health - must heal
         if self.hero.life < 25 and self.hero.gold >= 2:
             return self.go_to_nearest_tavern()
-        
+
         # Can't take mines - need to heal first
         if self.hero.life <= 20:
             if self.hero.gold >= 2:
                 return self.go_to_nearest_tavern()
             else:
                 return vindinium.STAY  # Wait to accumulate gold
-        
+
         # Low on mines - prioritize capturing
         if self.hero.mine_count < 3:
             return self.go_to_nearest_mine()
-        
+
         # Otherwise, get more mines
         return self.go_to_nearest_mine()
     

@@ -81,7 +81,7 @@ class Client:
         self.timeout_move = 15
         self.timeout_connection = 10 * 60
 
-        self.__session = None
+        self._session = None
 
     def run(self, bot):
         """Connects to the server waiting for a game.
@@ -94,8 +94,8 @@ class Client:
         """
         try:
             # Connect
-            state = self.__connect()
-            bot._start(state)
+            state = self._connect()
+            bot.start(state)
             play_url = state["playUrl"]
 
             # Move
@@ -108,12 +108,12 @@ class Client:
                 if self.debug:
                     start_time = time.time()
 
-                action = bot._move(state)
+                action = bot.move(state)
 
                 if self.debug:
                     elapsed_time = time.time() - start_time
 
-                state = self.__move(play_url, action)
+                state = self._send_move(play_url, action)
 
                 # Debug logging
                 if self.debug:
@@ -125,10 +125,10 @@ class Client:
 
         finally:
             # End
-            bot._end()
-            self.__disconnect()
+            bot.end()
+            self._disconnect()
 
-    def __connect(self):
+    def _connect(self):
         """Connects to the server.
 
         Returns:
@@ -139,7 +139,7 @@ class Client:
         """
 
         # Create requests session
-        self.__session = requests.session()
+        self._session = requests.session()
 
         # Set up parameters
         server = self.server
@@ -152,7 +152,7 @@ class Client:
 
         # Connect
         logging.info("Trying to connect to %s%s", server, endpoint)
-        r = self.__session.post(server + endpoint, params, timeout=10 * 60)
+        r = self._session.post(server + endpoint, params, timeout=10 * 60)
 
         # Get response
         if r.status_code == 200:
@@ -168,7 +168,7 @@ class Client:
             logging.error('Error when connecting to server, message: "%s"', r.text)
             raise IOError("Connection error, check log for the message.")
 
-    def __move(self, url, action):
+    def _send_move(self, url, action):
         """Sends a movement command to the server.
 
         Returns:
@@ -178,7 +178,7 @@ class Client:
             IOError if connection is aborted.
         """
 
-        r = self.__session.post(url, {"dir": action}, timeout=self.timeout_move)
+        r = self._session.post(url, {"dir": action}, timeout=self.timeout_move)
 
         if r.status_code == 200:
             return r.json()
@@ -191,10 +191,10 @@ class Client:
             )
             raise IOError("Connection error, check log for the message.")
 
-    def __disconnect(self):
+    def _disconnect(self):
         """Close the session.
 
         Properly closes the HTTP session to free up resources.
         """
-        if self.__session:
-            self.__session.close()
+        if self._session:
+            self._session.close()

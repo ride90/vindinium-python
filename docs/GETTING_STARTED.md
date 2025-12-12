@@ -44,16 +44,16 @@ Here's a simple bot that inherits from `BaseBot`:
 import vindinium
 
 class MyBot(vindinium.bots.BaseBot):
-    def start(self):
+    def _do_start(self):
         """Called when the game starts."""
         print('Game just started!')
-    
-    def move(self):
+
+    def _do_move(self):
         """Called each turn to get the bot's next move."""
         print('Game asking for a movement')
         return vindinium.STAY
-    
-    def end(self):
+
+    def _do_end(self):
         """Called when the game ends."""
         print('Game finished!')
 
@@ -116,28 +116,28 @@ Here's a bot that uses pathfinding to navigate to mines:
 import vindinium
 
 class SmartMinerBot(vindinium.bots.BaseBot):
-    def start(self):
+    def _do_start(self):
         """Initialize the A* pathfinding algorithm."""
         self.search = vindinium.ai.AStar(self.game.map)
-    
-    def move(self):
+
+    def _do_move(self):
         """Move towards the nearest enemy/neutral mine."""
         # Check if we need healing
         if self.hero.life < 30:
             return self.go_to_nearest_tavern()
-        
+
         # Otherwise, go capture mines
         return self.go_to_nearest_mine()
-    
+
     def go_to_nearest_tavern(self):
         """Navigate to the nearest tavern."""
         taverns = vindinium.utils.order_by_distance(
             self.hero.x, self.hero.y, self.game.taverns
         )
-        
+
         if taverns:
             return self.go_to(taverns[0].x, taverns[0].y)
-        
+
         return vindinium.STAY
     
     def go_to_nearest_mine(self):

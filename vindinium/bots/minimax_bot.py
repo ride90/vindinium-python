@@ -24,7 +24,7 @@ class MinimaxBot(BaseBot):
 
     search = None
 
-    def start(self):
+    def _do_start(self):
         """Initialize the minimax search algorithm.
 
         Called when the game starts to set up the minimax search
@@ -32,7 +32,7 @@ class MinimaxBot(BaseBot):
         """
         self.search = Minimax(self.game, 8)
 
-    def move(self):
+    def _do_move(self):
         """Use minimax to find the best move.
 
         Returns:

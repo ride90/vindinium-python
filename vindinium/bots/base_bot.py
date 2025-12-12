@@ -17,6 +17,8 @@ class BaseBot(RawBot):
     into structured Game and Hero objects, making it easier to access
     game information.
 
+    Override _do_start(), _do_move(), and _do_end() to implement your bot logic.
+
     Attributes:
         id (int): The bot's unique identifier.
         game (vindinium.models.Game): The game instance, automatically updated.
@@ -29,11 +31,11 @@ class BaseBot(RawBot):
     game = None
     hero = None
 
-    def _start(self, state):
-        """Internal wrapper for the start method.
+    def start(self, state):
+        """Called by the Client when the game starts.
 
         Processes the initial state into Game and Hero objects before
-        calling the user-defined start() method.
+        calling the user-defined _do_start() method.
 
         Args:
             state (dict): The initial game state from the server.
@@ -42,12 +44,12 @@ class BaseBot(RawBot):
         self.state = state
         self.game = Game(state)
         self.hero = self.game.heroes[self.id - 1]
-        self.start()
+        self._do_start()
 
-    def _move(self, state):
-        """Internal wrapper for the move method.
+    def move(self, state):
+        """Called by the Client when a move is requested.
 
-        Updates the game state before calling the user-defined move() method.
+        Updates the game state before calling the user-defined _do_move() method.
 
         Args:
             state (dict): The current game state from the server.
@@ -57,8 +59,11 @@ class BaseBot(RawBot):
         """
         self.state = state
         self.game.update(state)
-        return self.move()
+        return self._do_move()
 
-    def _end(self):
-        """Internal wrapper for the end method."""
-        self.end()
+    def end(self):
+        """Called by the Client when the game finishes.
+
+        Calls the user-defined _do_end() for cleanup.
+        """
+        self._do_end()

@@ -10,13 +10,14 @@ __all__ = ["RawBot"]
 class RawBot:
     """Raw bot that does not process the game state.
 
-    This is the most basic bot interface. Subclasses should implement
-    the start(), move(), and end() methods to create a functional bot.
+    This is the most basic bot interface. The Client calls the public
+    start(), move(), and end() methods. Subclasses should override the
+    _do_start(), _do_move(), and _do_end() methods to implement bot logic.
 
-    Implement the following methods to use:
-    - start(state): called when the game starts.
-    - move(state): called when the game requests a move from this bot.
-    - end(): called after the game finishes.
+    Override the following methods to create your bot:
+    - _do_start(): called when the game starts.
+    - _do_move(): called when the game requests a move from this bot.
+    - _do_end(): called after the game finishes.
 
     Attributes:
         id (int): The bot's unique identifier.
@@ -26,18 +27,22 @@ class RawBot:
     id = None
     state = None
 
-    def _start(self, state):
-        """Internal wrapper for the start method.
+    def start(self, state):
+        """Called by the Client when the game starts.
+
+        Sets up the bot's ID and state, then calls the user-defined _do_start().
 
         Args:
             state (dict): The initial game state from the server.
         """
         self.id = state["hero"]["id"]
         self.state = state
-        self.start()
+        self._do_start()
 
-    def _move(self, state):
-        """Internal wrapper for the move method.
+    def move(self, state):
+        """Called by the Client when a move is requested.
+
+        Updates the state, then calls the user-defined _do_move().
 
         Args:
             state (dict): The current game state from the server.
@@ -46,32 +51,35 @@ class RawBot:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
         self.state = state
-        return self.move()
+        return self._do_move()
 
-    def _end(self):
-        """Internal wrapper for the end method."""
-        self.end()
+    def end(self):
+        """Called by the Client when the game finishes.
 
-    def start(self):
-        """Called when the game starts.
+        Calls the user-defined _do_end() for cleanup.
+        """
+        self._do_end()
 
-        Override this method to initialize your bot's state.
+    def _do_start(self):
+        """Override this method to initialize your bot's state.
+
+        Called when the game starts, after id and state are set.
         """
         pass
 
-    def move(self):
-        """Called when the game requests a move from this bot.
+    def _do_move(self):
+        """Override this method to implement your bot's decision logic.
 
-        Override this method to implement your bot's decision logic.
+        Called each turn to decide the next move.
 
         Returns:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
         pass
 
-    def end(self):
-        """Called after the game finishes.
+    def _do_end(self):
+        """Override this method to perform cleanup or logging.
 
-        Override this method to perform cleanup or logging.
+        Called after the game finishes.
         """
         pass

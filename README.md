@@ -166,13 +166,13 @@ All bots should inherit from `BaseBot` (recommended) or `RawBot`:
 import vindinium
 
 class MyBot(vindinium.bots.BaseBot):
-    def start(self):
+    def _do_start(self):
         """Called when the game starts."""
         print('Game started!')
         # Initialize your bot here
         self.search = vindinium.ai.AStar(self.game.map)
 
-    def move(self):
+    def _do_move(self):
         """Called each turn. Must return a command."""
         # Your bot logic here
         if self.hero.life < 30:
@@ -180,7 +180,7 @@ class MyBot(vindinium.bots.BaseBot):
         else:
             return self.go_to_nearest_mine()
 
-    def end(self):
+    def _do_end(self):
         """Called when the game ends."""
         print(f'Game finished! Final gold: {self.hero.gold}')
 

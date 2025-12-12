@@ -25,14 +25,14 @@ class MinerBot(BaseBot):
 
     search = None
 
-    def start(self):
+    def _do_start(self):
         """Initialize the A* pathfinding algorithm.
 
         Called when the game starts to set up the pathfinding system.
         """
         self.search = AStar(self.game.map)
 
-    def move(self):
+    def _do_move(self):
         """Decide the next move based on health and mine ownership.
 
         Returns:

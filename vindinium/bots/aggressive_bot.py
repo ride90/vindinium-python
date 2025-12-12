@@ -25,7 +25,7 @@ class AggressiveBot(BaseBot):
 
     search = None
 
-    def start(self):
+    def _do_start(self):
         """Initialize the A* pathfinding algorithm and target.
 
         Called when the game starts to set up the pathfinding system.
@@ -33,7 +33,7 @@ class AggressiveBot(BaseBot):
         self.search = AStar(self.game.map)
         self.target = None
 
-    def move(self):
+    def _do_move(self):
         """Decide the next move based on health and target proximity.
 
         Returns:

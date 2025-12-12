@@ -17,7 +17,7 @@ class RandomBot(RawBot):
     (North, South, East, West, Stay) at each turn.
     """
 
-    def move(self):
+    def _do_move(self):
         """Select a random move.
 
         Returns:
