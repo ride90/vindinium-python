@@ -71,6 +71,7 @@ def main():
         mode=settings.MODE,
         n_turns=settings.N_TURNS,
         open_browser=settings.OPEN_BROWSER,
+        debug=settings.DEBUG,
     )
 
     print(f"\nStarting game with {settings.HERO_NAME} using {settings.BOT}...")

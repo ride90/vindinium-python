@@ -26,6 +26,7 @@ class Settings:
         MODE (str): Game mode ('training' or 'arena').
         N_TURNS (int): Number of turns for training mode (10-300).
         OPEN_BROWSER (bool): Whether to open the game in browser automatically.
+        DEBUG (bool): Enable debug logging (prints each move and timing).
     """
 
     # Vindinium server URL
@@ -48,6 +49,9 @@ class Settings:
 
     # Open browser automatically
     OPEN_BROWSER = os.getenv('VINDINIUM_OPEN_BROWSER', 'true').lower() in ('true', '1', 'yes')
+
+    # Debug mode (log each move and timing)
+    DEBUG = os.getenv('VINDINIUM_DEBUG', 'false').lower() in ('true', '1', 'yes')
     
     @classmethod
     def validate(cls):
@@ -80,6 +84,7 @@ class Settings:
         print(f"Mode:         {cls.MODE}")
         print(f"Turns:        {cls.N_TURNS}")
         print(f"Open Browser: {cls.OPEN_BROWSER}")
+        print(f"Debug:        {cls.DEBUG}")
         print("=" * 60)
 
 
@@ -95,4 +100,5 @@ BOT = settings.BOT
 MODE = settings.MODE
 N_TURNS = settings.N_TURNS
 OPEN_BROWSER = settings.OPEN_BROWSER
+DEBUG = settings.DEBUG
 
