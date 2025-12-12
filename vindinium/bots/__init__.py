@@ -1,3 +1,10 @@
+"""Bot implementations for Vindinium.
+
+This package contains various bot implementations ranging from simple
+random bots to more sophisticated AI-based bots using pathfinding and
+game tree search algorithms.
+"""
+
 from .raw_bot import *
 from .base_bot import *
 from .random_bot import *

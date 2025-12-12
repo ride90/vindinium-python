@@ -1,21 +1,31 @@
-__all__ = ['Mine']
+"""Mine model representing a gold mine on the map.
 
-class Mine(object):
-    '''A mine object.
-    
+This module provides the Mine class which represents a capturable
+gold mine that generates income for its owner.
+"""
+
+__all__ = ["Mine"]
+
+
+class Mine:
+    """Represents a gold mine on the map.
+
+    Mines can be captured by heroes and generate 1 gold per turn
+    for their owner.
+
     Attributes:
-        x (int): the mine position in X.
-        y (int): the mine position in Y.
-        owner (int): the hero's id that owns this mine.
-    '''
-    
+        x (int): The mine's position on the X axis.
+        y (int): The mine's position on the Y axis.
+        owner (int): The hero ID that owns this mine (None if uncaptured).
+    """
+
     def __init__(self, x, y):
-        '''Constructor.
+        """Initialize a mine at the given position.
 
         Args:
-            x (int): the mine position in X.
-            y (int): the mine position in Y.
-        '''
+            x (int): The mine's position on the X axis.
+            y (int): The mine's position on the Y axis.
+        """
         self.x = x
         self.y = y
         self.owner = None
