@@ -9,7 +9,7 @@ import vindinium as vin
 from vindinium.bots import BaseBot
 from vindinium.ai import AStar
 
-__all__ = ['AggressiveBot']
+__all__ = ["AggressiveBot"]
 
 
 class AggressiveBot(BaseBot):
@@ -130,4 +130,4 @@ class AggressiveBot(BaseBot):
         Returns:
             str: A randomly chosen direction.
         """
-        return random.choice(['Stay', 'North', 'West', 'East', 'South'])
+        return random.choice(["Stay", "North", "West", "East", "South"])

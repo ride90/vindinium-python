@@ -4,7 +4,7 @@ This module provides the Tavern class which represents a location
 where heroes can heal in exchange for gold.
 """
 
-__all__ = ['Tavern']
+__all__ = ["Tavern"]
 
 
 class Tavern:
@@ -26,5 +26,3 @@ class Tavern:
         """
         self.x = x
         self.y = y
-
-

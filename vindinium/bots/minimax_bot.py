@@ -9,7 +9,7 @@ import vindinium as vin
 from vindinium.bots import BaseBot
 from vindinium.ai import Minimax
 
-__all__ = ['MinimaxBot']
+__all__ = ["MinimaxBot"]
 
 
 class MinimaxBot(BaseBot):

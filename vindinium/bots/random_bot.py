@@ -7,7 +7,7 @@ useful for testing and as a baseline for comparison.
 import random
 from vindinium.bots import RawBot
 
-__all__ = ['RandomBot']
+__all__ = ["RandomBot"]
 
 
 class RandomBot(RawBot):
@@ -23,4 +23,4 @@ class RandomBot(RawBot):
         Returns:
             str: A randomly chosen direction from 'Stay', 'North', 'West', 'East', 'South'.
         """
-        return random.choice(['Stay', 'North', 'West', 'East', 'South'])
+        return random.choice(["Stay", "North", "West", "East", "South"])

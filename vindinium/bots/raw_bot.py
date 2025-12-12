@@ -4,7 +4,7 @@ This module defines the RawBot class which serves as the minimal bot
 interface without any state processing.
 """
 
-__all__ = ['RawBot']
+__all__ = ["RawBot"]
 
 
 class RawBot:
@@ -32,7 +32,7 @@ class RawBot:
         Args:
             state (dict): The initial game state from the server.
         """
-        self.id = state['hero']['id']
+        self.id = state["hero"]["id"]
         self.state = state
         self.start()
 

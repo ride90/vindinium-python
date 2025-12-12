@@ -9,7 +9,7 @@ import vindinium
 from .state import State
 from . import functions as f
 
-__all__ = ['Minimax']
+__all__ = ["Minimax"]
 
 
 class Minimax:
@@ -67,9 +67,7 @@ class Minimax:
 
         return result
 
-    def _minimax(
-        self, state, depth, alpha=-float('inf'), beta=float('inf'), color=0
-    ):
+    def _minimax(self, state, depth, alpha=-float("inf"), beta=float("inf"), color=0):
         """Negamax function with alpha-beta pruning.
 
         Args:
@@ -89,7 +87,7 @@ class Minimax:
         if depth == 0 or self._f_terminal(self, game, state):
             return (mod * self._f_evaluate(self, game, state), state)
 
-        best_value = -float('inf')
+        best_value = -float("inf")
         best_state = None
         next_states = self._f_generate(self, game, state)
         next_states = self._f_sort(self, game, next_states)
@@ -101,9 +99,7 @@ class Minimax:
             if color % 4 == 0 or (color + 1) % 4 == 0:
                 value = -value
 
-            if (value > best_value) or (
-                value == best_state and random.random() < 0.3
-            ):
+            if (value > best_value) or (value == best_state and random.random() < 0.3):
                 best_state = next_state
                 best_value = value
 

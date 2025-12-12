@@ -7,11 +7,11 @@ calculating distances, and ordering objects by distance.
 import vindinium
 
 __all__ = [
-    'dir_to_command',
-    'command_to_dir',
-    'path_to_command',
-    'distance_manhattan',
-    'order_by_distance',
+    "dir_to_command",
+    "command_to_dir",
+    "path_to_command",
+    "distance_manhattan",
+    "order_by_distance",
 ]
 
 
@@ -39,7 +39,7 @@ def dir_to_command(dx, dy):
     elif dx == 0 and dy == 0:
         return vindinium.STAY
 
-    raise ValueError('Invalid direction (%s, %s).' % (dx, dy))
+    raise ValueError("Invalid direction (%s, %s)." % (dx, dy))
 
 
 def command_to_dir(command):
@@ -117,5 +117,3 @@ def order_by_distance(x, y, objects):
         list: An ordered copy of ``objects``.
     """
     return sorted(objects, key=lambda item: distance_manhattan(x, y, item.x, item.y))
-
-

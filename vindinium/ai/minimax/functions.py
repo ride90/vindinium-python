@@ -9,10 +9,10 @@ import random
 
 MOVES = {
     # 'Stay'  : (0, 0),
-    'North': (0, -1),
-    'West': (-1, 0),
-    'South': (0, 1),
-    'East': (1, 0),
+    "North": (0, -1),
+    "West": (-1, 0),
+    "South": (0, 1),
+    "East": (1, 0),
 }
 
 
@@ -43,8 +43,8 @@ def generate(minimax, game, state):
     """
     id = state.turn % 4
     hero = state.heroes[id]
-    x = hero['x']
-    y = hero['y']
+    x = hero["x"]
+    y = hero["y"]
     size = game.map.size
 
     result = []
@@ -82,14 +82,14 @@ def evaluate(minimax, game, state):
 
         # mine distance
         if mod != 1:
-            d = abs(hero['x'] - x) + abs(hero['y'] - y)
+            d = abs(hero["x"] - x) + abs(hero["y"] - y)
             if distance is None or d < distance:
                 distance = d
 
     value -= distance or 0
 
     # life
-    value += round(hero['life'] / 10)
+    value += round(hero["life"] / 10)
 
     return value
 

@@ -1,7 +1,7 @@
 """Awesome Python client for Vindinium.
 
 Vindinium is an online and continuous competition where you control a bot in a
-turn-based game. See https://vindinium.josefelixh.net/ for more information.
+turn-based game.
 
 Note: This client is based on ornicar's client:
 https://github.com/ornicar/vindinium-starter-python
@@ -50,11 +50,11 @@ TILE_TAVERN = 3
 TILE_MINE = 4
 
 # Command values
-NORTH = 'North'
-SOUTH = 'South'
-WEST = 'West'
-EAST = 'East'
-STAY = 'Stay'
+NORTH = "North"
+SOUTH = "South"
+WEST = "West"
+EAST = "East"
+STAY = "Stay"
 
 # Direction tuples
 DIR_NORTH = (0, -1)

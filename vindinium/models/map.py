@@ -4,7 +4,7 @@ This module provides the Map class which represents the game board
 with static elements like walls, paths, taverns, mines, and spawn points.
 """
 
-__all__ = ['Map']
+__all__ = ["Map"]
 
 
 class Map:
@@ -52,12 +52,12 @@ class Map:
         Returns:
             str: ASCII art representation of the map.
         """
-        s = ' '
-        s += '-' * (self.size) + '\n'
+        s = " "
+        s += "-" * (self.size) + "\n"
         for y in range(self.size):
-            s += '|'
+            s += "|"
             for x in range(self.size):
-                s += str(self[x, y] or ' ')
-            s += '|\n'
-        s += ' ' + '-' * (self.size)
+                s += str(self[x, y] or " ")
+            s += "|\n"
+        s += " " + "-" * (self.size)
         return s

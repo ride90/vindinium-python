@@ -7,7 +7,7 @@ process the raw game state into structured Game and Hero objects.
 from vindinium.bots import RawBot
 from vindinium.models import Game
 
-__all__ = ['BaseBot']
+__all__ = ["BaseBot"]
 
 
 class BaseBot(RawBot):
@@ -38,7 +38,7 @@ class BaseBot(RawBot):
         Args:
             state (dict): The initial game state from the server.
         """
-        self.id = state['hero']['id']
+        self.id = state["hero"]["id"]
         self.state = state
         self.game = Game(state)
         self.hero = self.game.heroes[self.id - 1]
@@ -62,4 +62,3 @@ class BaseBot(RawBot):
     def _end(self):
         """Internal wrapper for the end method."""
         self.end()
-        

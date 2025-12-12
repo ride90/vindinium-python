@@ -6,7 +6,7 @@ pathfinding algorithms like A*.
 
 import heapq
 
-__all__ = ['HeapQueue']
+__all__ = ["HeapQueue"]
 
 
 class HeapQueue:

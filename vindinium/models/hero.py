@@ -4,7 +4,7 @@ This module provides the Hero class which represents a player/bot
 in the Vindinium game with all their attributes and state.
 """
 
-__all__ = ['Hero']
+__all__ = ["Hero"]
 
 
 class Hero:
@@ -33,18 +33,18 @@ class Hero:
             hero (dict): The hero data dictionary from the server.
         """
         # Constants
-        self.id = hero['id']
-        self.name = hero['name']
-        self.user_id = hero.get('userId')
-        self.elo = hero.get('elo')
+        self.id = hero["id"]
+        self.name = hero["name"]
+        self.user_id = hero.get("userId")
+        self.elo = hero.get("elo")
 
         # Variables
-        self.crashed = hero['crashed']
-        self.mine_count = hero['mineCount']
-        self.gold = hero['gold']
-        self.life = hero['life']
-        self.last_dir = hero.get('lastDir')
-        self.x = hero['pos']['y']
-        self.y = hero['pos']['x']
-        self.spawn_x = hero['spawnPos']['y']
-        self.spawn_y = hero['spawnPos']['x']
+        self.crashed = hero["crashed"]
+        self.mine_count = hero["mineCount"]
+        self.gold = hero["gold"]
+        self.life = hero["life"]
+        self.last_dir = hero.get("lastDir")
+        self.x = hero["pos"]["y"]
+        self.y = hero["pos"]["x"]
+        self.spawn_x = hero["spawnPos"]["y"]
+        self.spawn_y = hero["spawnPos"]["x"]

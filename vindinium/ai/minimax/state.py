@@ -84,15 +84,15 @@ class State:
         Returns:
             str: A formatted string showing heroes and their stats.
         """
-        s = 'Heroes (turn %d/%s): \n' % (self.turn, self.last_move or '')
+        s = "Heroes (turn %d/%s): \n" % (self.turn, self.last_move or "")
         for i, hero in enumerate(self.heroes):
-            s += '    %d: (%d, %d, l%03d, $%d, m%d)\n' % (
+            s += "    %d: (%d, %d, l%03d, $%d, m%d)\n" % (
                 i,
-                hero['x'],
-                hero['y'],
-                hero['life'],
-                hero['gold'],
-                hero['mine_count'],
+                hero["x"],
+                hero["y"],
+                hero["life"],
+                hero["gold"],
+                hero["mine_count"],
             )
 
         return s

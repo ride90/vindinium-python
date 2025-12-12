@@ -7,7 +7,7 @@ for the Vindinium game map.
 import vindinium as vin
 from vindinium.utils import HeapQueue
 
-__all__ = ['AStar']
+__all__ = ["AStar"]
 
 DIR_NEIGHBORS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 

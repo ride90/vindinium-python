@@ -4,7 +4,7 @@ This module provides the Mine class which represents a capturable
 gold mine that generates income for its owner.
 """
 
-__all__ = ['Mine']
+__all__ = ["Mine"]
 
 
 class Mine:

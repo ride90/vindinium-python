@@ -6,7 +6,7 @@ or with tic/toc methods similar to MATLAB.
 
 import time
 
-__all__ = ['Timer']
+__all__ = ["Timer"]
 
 
 class Timer:
@@ -67,7 +67,7 @@ class Timer:
         self.toc()
 
         if self._do_print:
-            print('Elapsed time is %f seconds.' % self.elapsed)
+            print("Elapsed time is %f seconds." % self.elapsed)
 
     def tic(self):
         """Start the timer."""

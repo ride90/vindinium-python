@@ -9,7 +9,7 @@ import vindinium as vin
 from vindinium.bots import BaseBot
 from vindinium.ai import AStar
 
-__all__ = ['MinerBot']
+__all__ = ["MinerBot"]
 
 
 class MinerBot(BaseBot):
@@ -116,4 +116,4 @@ class MinerBot(BaseBot):
         Returns:
             str: A randomly chosen direction.
         """
-        return random.choice(['Stay', 'North', 'West', 'East', 'South'])
+        return random.choice(["Stay", "North", "West", "East", "South"])
