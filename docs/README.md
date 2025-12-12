@@ -4,7 +4,9 @@ Welcome to the vindinium-python documentation!
 
 ## Quick Links
 
+- **[Local Server Guide](LOCAL_SERVER.md)** - Run your own Vindinium server (recommended!)
 - **[Installation Guide](INSTALLATION.md)** - How to set up the project
+- **[Configuration Guide](CONFIGURATION.md)** - Environment variables and settings
 - **[Getting Started](GETTING_STARTED.md)** - Create your first bot
 - **[Code Snippets](SNIPPETS.md)** - Common patterns and examples
 

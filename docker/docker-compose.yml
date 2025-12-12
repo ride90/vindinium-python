@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:4.4
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    command: mongod --noauth
+    networks:
+      - vindinium-network
+
+  vindinium:
+    image: rutkai/vindinium
+    platform: linux/amd64
+    container_name: vindinium
+    ports:
+      - "80:9000"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+    networks:
+      - vindinium-network
+
+networks:
+  vindinium-network:
+    driver: bridge
+volumes:
+    mongodb-data:

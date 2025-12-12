@@ -6,7 +6,7 @@ A Python 3.13+ client for Vindinium - an AI programming challenge game.
 
 Vindinium is an online turn-based competition where you control a bot to compete against other bots. Four heroes battle on a map to accumulate the most gold by capturing mines, fighting opponents, and managing resources.
 
-**Note:** You'll need access to a Vindinium server to play. Configure the server URL in your `.env` file.
+**🚀 Quick Start:** This project includes a Docker setup to run a local Vindinium server - no external server needed! See [Local Server Guide](docs/LOCAL_SERVER.md).
 
 ## Features
 
@@ -85,14 +85,27 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Get Your API Key
+### 4. Start Local Server (Optional but Recommended)
 
-1. Go to your Vindinium server
+Run your own Vindinium server locally:
+
+```bash
+cd docker
+docker-compose up -d
+```
+
+Then open http://localhost in your browser. See [Local Server Guide](docs/LOCAL_SERVER.md) for details.
+
+**Skip this step** if you have access to an external Vindinium server.
+
+### 5. Get Your API Key
+
+1. Go to your Vindinium server (http://localhost if using local server)
 2. Register or log in
 3. Click "Create a bot" and enter a name
 4. Copy your API key
 
-### 5. Configure Your Settings
+### 6. Configure Your Settings
 
 Create a `.env` file from the example:
 
@@ -103,14 +116,20 @@ cp .env.example .env
 Edit `.env` and add your server URL and API key:
 
 ```bash
-VINDINIUM_SERVER=<your-vindinium-server-url>
+# For local server:
+VINDINIUM_SERVER=http://localhost
 VINDINIUM_KEY=<your-api-key>
 VINDINIUM_HERO_NAME=MyBot
+
+# For external server:
+# VINDINIUM_SERVER=<your-vindinium-server-url>
+# VINDINIUM_KEY=<your-api-key>
+# VINDINIUM_HERO_NAME=MyBot
 ```
 
 See [Configuration Guide](docs/CONFIGURATION.md) for details.
 
-### 6. Run Your Bot
+### 7. Run Your Bot
 
 ```bash
 python main.py
