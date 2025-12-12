@@ -25,6 +25,9 @@ VINDINIUM_KEY=<your-api-key>
 
 # Your hero's display name
 VINDINIUM_HERO_NAME=MyAwesomeBot
+
+# Bot to use (RandomBot, MinerBot, AggressiveBot, MinimaxBot)
+VINDINIUM_BOT=MinerBot
 ```
 
 ### 3. Get Your API Key
@@ -58,6 +61,21 @@ Your bot's API key from the Vindinium server.
 Your hero's display name (used for logging and display in your code).
 
 - **Default:** `MyBot`
+
+### `VINDINIUM_BOT`
+
+The bot class to use when running `main.py`.
+
+- **Required:** No
+- **Default:** `MinerBot`
+- **Available bots:**
+  - `RandomBot` - Makes random moves
+  - `MinerBot` - Focuses on capturing mines
+  - `AggressiveBot` - Attacks other heroes
+  - `MinimaxBot` - Uses minimax algorithm with game tree search
+  - `BaseBot` - Base class (you need to extend it)
+  - `RawBot` - Raw interface (you need to extend it)
+- **Example:** `VINDINIUM_BOT=AggressiveBot`
 - **Example:** `AggressiveMiner`
 - **Note:** The actual in-game name is set on the Vindinium server when you create your bot
 
@@ -161,6 +179,9 @@ VINDINIUM_KEY=<your-api-key>
 
 # Your hero's name (for display/logging)
 VINDINIUM_HERO_NAME=MyAwesomeBot
+
+# Bot to use
+VINDINIUM_BOT=MinerBot
 ```
 
 ## Advanced Usage
@@ -182,9 +203,40 @@ from settings import settings
 # Now settings will use values from .env.bot1
 ```
 
-### Override Settings
+### Override Settings with Environment Variables
 
-You can override settings in code if needed:
+You can override any setting using environment variables without editing `.env`:
+
+```bash
+# Run with a different bot
+VINDINIUM_BOT=AggressiveBot python main.py
+
+# Run with different bot and hero name
+VINDINIUM_BOT=MinimaxBot VINDINIUM_HERO_NAME=SmartBot python main.py
+
+# Override multiple settings
+VINDINIUM_SERVER=http://localhost VINDINIUM_KEY=test123 VINDINIUM_BOT=RandomBot python main.py
+```
+
+This is perfect for running multiple bots simultaneously:
+
+```bash
+# Terminal 1 - MinerBot
+VINDINIUM_BOT=MinerBot python main.py
+
+# Terminal 2 - AggressiveBot
+VINDINIUM_BOT=AggressiveBot python main.py
+
+# Terminal 3 - MinimaxBot
+VINDINIUM_BOT=MinimaxBot python main.py
+
+# Terminal 4 - RandomBot
+VINDINIUM_BOT=RandomBot python main.py
+```
+
+### Override Settings in Code
+
+You can also override settings in code if needed:
 
 ```python
 from settings import settings
@@ -192,6 +244,7 @@ from settings import settings
 # Override for testing
 settings.SERVER = 'http://localhost:9000'
 settings.HERO_NAME = 'TestBot'
+settings.BOT = 'AggressiveBot'
 ```
 
 ## See Also
