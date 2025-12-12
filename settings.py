@@ -30,28 +30,28 @@ class Settings:
     """
 
     # Vindinium server URL
-    SERVER = os.getenv('VINDINIUM_SERVER', '')
+    SERVER = os.getenv('SERVER', '')
 
     # Your bot's API key
-    KEY = os.getenv('VINDINIUM_KEY', '')
+    KEY = os.getenv('KEY', '')
 
     # Your hero's name
-    HERO_NAME = os.getenv('VINDINIUM_HERO_NAME', '')
+    HERO_NAME = os.getenv('HERO_NAME', '')
 
     # Bot class to use
-    BOT = os.getenv('VINDINIUM_BOT', 'MinerBot')
+    BOT = os.getenv('BOT', 'MinerBot')
 
     # Game mode (training or arena)
-    MODE = os.getenv('VINDINIUM_MODE', 'training')
+    MODE = os.getenv('MODE', 'training')
 
     # Number of turns (for training mode)
-    N_TURNS = int(os.getenv('VINDINIUM_N_TURNS', '10'))
+    N_TURNS = int(os.getenv('N_TURNS', '10'))
 
     # Open browser automatically
-    OPEN_BROWSER = os.getenv('VINDINIUM_OPEN_BROWSER', 'true').lower() in ('true', '1', 'yes')
+    OPEN_BROWSER = os.getenv('OPEN_BROWSER', 'true').lower() in ('true', '1', 'yes')
 
     # Debug mode (log each move and timing)
-    DEBUG = os.getenv('VINDINIUM_DEBUG', 'false').lower() in ('true', '1', 'yes')
+    DEBUG = os.getenv('DEBUG', 'false').lower() in ('true', '1', 'yes')
     
     @classmethod
     def validate(cls):
@@ -62,13 +62,13 @@ class Settings:
         """
         if not cls.KEY:
             raise ValueError(
-                "VINDINIUM_KEY is not set. "
+                "KEY is not set. "
                 "Please create a .env file with your API key. "
                 "See .env.example for reference."
             )
         
         if not cls.SERVER:
-            raise ValueError("VINDINIUM_SERVER is not set.")
+            raise ValueError("SERVER is not set.")
     
     @classmethod
     def display(cls):

@@ -18,16 +18,16 @@ Open `.env` in your text editor and update the values:
 
 ```bash
 # Vindinium server URL
-VINDINIUM_SERVER=<your-vindinium-server-url>
+SERVER=<your-vindinium-server-url>
 
 # Your bot's API key (get from the server)
-VINDINIUM_KEY=<your-api-key>
+KEY=<your-api-key>
 
 # Your hero's display name
-VINDINIUM_HERO_NAME=MyAwesomeBot
+HERO_NAME=MyAwesomeBot
 
 # Bot to use (RandomBot, MinerBot, AggressiveBot, MinimaxBot)
-VINDINIUM_BOT=MinerBot
+BOT=MinerBot
 ```
 
 ### 3. Get Your API Key
@@ -36,11 +36,11 @@ VINDINIUM_BOT=MinerBot
 2. Click **"Create a bot"**
 3. Enter your bot name
 4. Copy the API key
-5. Paste it into your `.env` file as `VINDINIUM_KEY`
+5. Paste it into your `.env` file as `KEY`
 
 ## Configuration Settings
 
-### `VINDINIUM_SERVER`
+### `SERVER`
 
 The Vindinium server URL.
 
@@ -48,7 +48,7 @@ The Vindinium server URL.
 - **Example:** `https://your-vindinium-server.com`
 - **Local server:** `http://localhost:9000` (if running your own server)
 
-### `VINDINIUM_KEY`
+### `KEY`
 
 Your bot's API key from the Vindinium server.
 
@@ -56,13 +56,13 @@ Your bot's API key from the Vindinium server.
 - **Example:** `abc123xyz`
 - **Where to get it:** Your Vindinium server → Create a bot
 
-### `VINDINIUM_HERO_NAME`
+### `HERO_NAME`
 
 Your hero's display name (used for logging and display in your code).
 
 - **Default:** `MyBot`
 
-### `VINDINIUM_BOT`
+### `BOT`
 
 The bot class to use when running `main.py`.
 
@@ -75,7 +75,7 @@ The bot class to use when running `main.py`.
   - `MinimaxBot` - Uses minimax algorithm with game tree search
   - `BaseBot` - Base class (you need to extend it)
   - `RawBot` - Raw interface (you need to extend it)
-- **Example:** `VINDINIUM_BOT=AggressiveBot`
+- **Example:** `BOT=AggressiveBot`
 - **Example:** `AggressiveMiner`
 - **Note:** The actual in-game name is set on the Vindinium server when you create your bot
 
@@ -144,7 +144,7 @@ The `.env.example` file contains placeholder values and is safe to commit. It se
 
 ## Troubleshooting
 
-### "VINDINIUM_KEY is not set"
+### "KEY is not set"
 
 You need to create a `.env` file with your API key:
 
@@ -162,7 +162,7 @@ Make sure:
 
 ### Wrong Server URL
 
-If you're getting connection errors, check that `VINDINIUM_SERVER` is correct:
+If you're getting connection errors, check that `SERVER` is correct:
 - Make sure you have the correct server URL from your Vindinium administrator
 - For local servers: `http://localhost:9000`
 
@@ -172,16 +172,16 @@ If you're getting connection errors, check that `VINDINIUM_SERVER` is correct:
 # Vindinium Game Settings
 
 # Server URL
-VINDINIUM_SERVER=<your-vindinium-server-url>
+SERVER=<your-vindinium-server-url>
 
 # Your API key from your Vindinium server
-VINDINIUM_KEY=<your-api-key>
+KEY=<your-api-key>
 
 # Your hero's name (for display/logging)
-VINDINIUM_HERO_NAME=MyAwesomeBot
+HERO_NAME=MyAwesomeBot
 
 # Bot to use
-VINDINIUM_BOT=MinerBot
+BOT=MinerBot
 ```
 
 ## Advanced Usage
@@ -209,29 +209,29 @@ You can override any setting using environment variables without editing `.env`:
 
 ```bash
 # Run with a different bot
-VINDINIUM_BOT=AggressiveBot python main.py
+BOT=AggressiveBot python main.py
 
 # Run with different bot and hero name
-VINDINIUM_BOT=MinimaxBot VINDINIUM_HERO_NAME=SmartBot python main.py
+BOT=MinimaxBot HERO_NAME=SmartBot python main.py
 
 # Override multiple settings
-VINDINIUM_SERVER=http://localhost VINDINIUM_KEY=test123 VINDINIUM_BOT=RandomBot python main.py
+SERVER=http://localhost KEY=test123 BOT=RandomBot python main.py
 ```
 
 This is perfect for running multiple bots simultaneously:
 
 ```bash
 # Terminal 1 - MinerBot
-VINDINIUM_BOT=MinerBot python main.py
+BOT=MinerBot python main.py
 
 # Terminal 2 - AggressiveBot
-VINDINIUM_BOT=AggressiveBot python main.py
+BOT=AggressiveBot python main.py
 
 # Terminal 3 - MinimaxBot
-VINDINIUM_BOT=MinimaxBot python main.py
+BOT=MinimaxBot python main.py
 
 # Terminal 4 - RandomBot
-VINDINIUM_BOT=RandomBot python main.py
+BOT=RandomBot python main.py
 ```
 
 ### Override Settings in Code

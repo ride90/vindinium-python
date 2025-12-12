@@ -117,14 +117,14 @@ Edit `.env` and add your server URL and API key:
 
 ```bash
 # For local server:
-VINDINIUM_SERVER=http://localhost
-VINDINIUM_KEY=<your-api-key>
-VINDINIUM_HERO_NAME=MyBot
+SERVER=http://localhost
+KEY=<your-api-key>
+HERO_NAME=MyBot
 
 # For external server:
-# VINDINIUM_SERVER=<your-vindinium-server-url>
-# VINDINIUM_KEY=<your-api-key>
-# VINDINIUM_HERO_NAME=MyBot
+# SERVER=<your-vindinium-server-url>
+# KEY=<your-api-key>
+# HERO_NAME=MyBot
 ```
 
 See [Configuration Guide](docs/CONFIGURATION.md) for details.
