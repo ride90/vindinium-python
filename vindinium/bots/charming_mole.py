@@ -32,8 +32,19 @@ class CharmingMoleBot(BaseBot):
     # If HP < this value and we're next to a tavern, heal immediately
     NEARBY_TAVERN_HEAL_THRESHOLD = 80
 
+    # Phase-based HP thresholds for going to tavern
+    # Format: (opening, mid, end) - more conservative as game progresses
+    HP_THRESHOLD_OPENING = 30  # Early game: aggressive, don't waste turns healing
+    HP_THRESHOLD_MID = 45      # Mid game: balanced
+    HP_THRESHOLD_END = 55      # Late game: conservative, protect mines
+
+    # Game phase boundaries (as percentage of max_turns)
+    PHASE_OPENING_END = 0.25   # First 25% of game
+    PHASE_MID_END = 0.85       # 25-85% is mid game, after 85% is endgame
+
     search = None
     _friendly_hero_ids = None  # Cache of friendly hero IDs
+    _prev_life = None          # Track previous life for respawn detection
 
     def _do_start(self):
         """Initialize the A* pathfinding algorithm and friendly hero detection.
@@ -423,6 +434,132 @@ class CharmingMoleBot(BaseBot):
         return (False, None)
 
     # =========================================================================
+    # PHASE 2: STOP WASTING - Game Phase Awareness & Mine Value
+    # =========================================================================
+
+    def _get_game_phase(self):
+        """Determine the current game phase based on turn progress.
+
+        Phases:
+        - "opening": First 25% of game - aggressive mining, less healing
+        - "mid": 25-85% of game - balanced play
+        - "end": Last 15% of game - conservative, protect lead
+
+        Also detects respawn (just died and came back with 100 HP),
+        which resets to "opening" mentality temporarily.
+
+        Returns:
+            str: "opening", "mid", or "end"
+        """
+        # Calculate game progress
+        turn = self.game.turn
+        max_turns = self.game.max_turns
+        progress = turn / max_turns if max_turns > 0 else 0
+
+        # Detect respawn: previous life was very low, now at 100
+        just_respawned = (
+            self._prev_life is not None
+            and self._prev_life <= 20
+            and self.hero.life == 100
+        )
+
+        # After respawn, play like opening (aggressive mining to recover)
+        if just_respawned or progress < self.PHASE_OPENING_END:
+            return "opening"
+        elif progress < self.PHASE_MID_END:
+            return "mid"
+        else:
+            return "end"
+
+    def _get_remaining_turns(self):
+        """Get the number of turns remaining in the game.
+
+        Note: In Vindinium, max_turns is total turns for ALL heroes.
+        With 4 heroes, each hero gets max_turns/4 individual turns.
+
+        Returns:
+            int: Remaining turns for this hero.
+        """
+        total_remaining = self.game.max_turns - self.game.turn
+        # Each hero gets 1/4 of total turns
+        return total_remaining // 4
+
+    def _get_dynamic_hp_threshold(self, danger_level=0):
+        """Get the HP threshold for going to tavern based on game phase and danger.
+
+        Early game: Low threshold (30) - don't waste turns healing
+        Mid game: Medium threshold (45) - balanced
+        Late game: High threshold (55) - protect mines, stay alive
+
+        Danger modifier: +20 HP if enemies are nearby
+
+        Args:
+            danger_level (int): Current danger level (0-3).
+
+        Returns:
+            int: HP threshold below which we should go to tavern.
+        """
+        phase = self._get_game_phase()
+
+        if phase == "opening":
+            base_threshold = self.HP_THRESHOLD_OPENING
+        elif phase == "mid":
+            base_threshold = self.HP_THRESHOLD_MID
+        else:  # end
+            base_threshold = self.HP_THRESHOLD_END
+
+        # Add danger modifier: more conservative when enemies nearby
+        danger_modifier = 20 if danger_level >= 1 else 0
+
+        return base_threshold + danger_modifier
+
+    def _is_mine_worth_taking(self, mine_x, mine_y):
+        """Calculate if taking a mine is worth it based on remaining turns.
+
+        A mine is worth taking if:
+        1. We can reach it before the game ends
+        2. We'll hold it long enough to earn back the HP cost (20)
+        3. We have enough HP to survive the capture
+
+        The value calculation:
+        - Cost: 20 HP + travel_distance turns
+        - Benefit: 1 gold per turn for remaining_turns - travel_distance
+
+        Args:
+            mine_x (int): X coordinate of the mine.
+            mine_y (int): Y coordinate of the mine.
+
+        Returns:
+            bool: True if the mine is worth taking.
+        """
+        # Calculate distance to mine
+        distance = vin.utils.distance_manhattan(
+            self.hero.x, self.hero.y, mine_x, mine_y
+        )
+
+        remaining = self._get_remaining_turns()
+
+        # Can't reach it before game ends
+        if distance >= remaining:
+            return False
+
+        # Turns we'd hold the mine
+        turns_holding = remaining - distance
+
+        # Not worth it if we'd hold for less than 5 turns
+        # (arbitrary threshold, but captures the "don't chase distant mines late game" idea)
+        if turns_holding < 5:
+            return False
+
+        # Check if we have enough HP to survive the journey + capture
+        # Need: travel HP loss (1 per turn) + capture cost (20) + buffer (10)
+        hp_needed = distance + 20 + 10
+        if self.hero.life < hp_needed:
+            return False
+
+        return True
+
+    # =========================================================================
     # MAIN DECISION LOGIC
     # =========================================================================
 
@@ -432,8 +569,8 @@ class CharmingMoleBot(BaseBot):
         Decision priority:
         1. Nearby tavern healing (opportunistic, almost free)
         2. Flee from critical danger (survival)
-        3. Go to tavern if low HP
-        4. Normal mining behavior
+        3. Go to tavern if low HP (dynamic threshold based on game phase)
+        4. Normal mining behavior (with mine value calculation)
 
         Returns:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
@@ -442,7 +579,9 @@ class CharmingMoleBot(BaseBot):
         # Performance: O(T) tavern check + O(3) danger check = negligible
         should_heal, tavern = self._should_heal_at_nearby_tavern()
         if should_heal:
-            return self._move_to_nearby_tavern(tavern)
+            command = self._move_to_nearby_tavern(tavern)
+            self._prev_life = self.hero.life  # Track for respawn detection
+            return command
 
         # Priority 2: Flee from critical danger
         danger_level, closest_enemy = self._get_danger_level()
@@ -450,18 +589,22 @@ class CharmingMoleBot(BaseBot):
             # Try to flee
             flee_cmd = self._get_flee_direction(closest_enemy)
             if flee_cmd != "Stay":
+                self._prev_life = self.hero.life
                 return flee_cmd
             # Can't flee - go to tavern if possible
             if self.hero.gold >= 2:
-                return self._go_to_nearest_tavern()
+                command = self._go_to_nearest_tavern()
+                self._prev_life = self.hero.life
+                return command
 
-        # Priority 3: Go to tavern if low HP (danger-aware threshold)
-        # hp_threshold = 50 if danger_level == 0 else 70  # More conservative when enemies near
-        hp_threshold = 70
+        # Priority 3: Go to tavern if low HP (dynamic threshold based on game phase)
+        # Phase-aware: opening=30, mid=45, end=55, +20 if enemies nearby
+        hp_threshold = self._get_dynamic_hp_threshold(danger_level)
+
         if self.hero.life < hp_threshold and self.hero.gold >= 2:
             command = self._go_to_nearest_tavern()
         else:
-            # Priority 4: Normal mining behavior
+            # Priority 4: Normal mining behavior (with mine value calculation)
             command = self._go_to_nearest_mine()
 
         # Safety check: don't walk into enemies unless we'd win
@@ -474,8 +617,11 @@ class CharmingMoleBot(BaseBot):
         # Friendly fire avoidance (existing logic)
         # Performance: O(3) check with O(1) set lookup
         if self._would_hit_friendly(command):
+            self._prev_life = self.hero.life
             return "Stay"
 
+        # Track life for respawn detection
+        self._prev_life = self.hero.life
         return command
 
     def _would_walk_into_danger(self, command):
@@ -536,15 +682,18 @@ class CharmingMoleBot(BaseBot):
         return "Stay"  # No safe alternative, just stay
 
     def _go_to_nearest_mine(self):
-        """Navigate to the nearest mine not owned by this bot or friendly bots.
+        """Navigate to the nearest worthwhile mine not owned by this bot or friendly bots.
 
         When FRIENDLY_FIRE_AVOIDANCE is enabled, this method will skip mines
         owned by heroes with the same name (friendly bots), treating them
         as if they were our own mines.
 
+        Phase 2 Enhancement: Uses mine value calculation to skip mines that
+        aren't worth taking (too far, not enough turns left, not enough HP).
+
         Returns:
-            str: The direction to move toward the nearest uncaptured mine,
-                or a random move if no path is found.
+            str: The direction to move toward the nearest worthwhile mine,
+                or a random move if no worthwhile mine is found.
         """
         x = self.hero.x
         y = self.hero.y
@@ -558,6 +707,10 @@ class CharmingMoleBot(BaseBot):
 
             # Skip mines owned by friendly heroes (same name)
             if self._is_friendly_mine(mine):
+                continue
+
+            # Phase 2: Skip mines that aren't worth taking
+            if not self._is_mine_worth_taking(mine.x, mine.y):
                 continue
 
             command = self._go_to(mine.x, mine.y)
