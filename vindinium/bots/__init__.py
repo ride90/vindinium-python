@@ -15,3 +15,6 @@ from .aggressive_bot import *
 
 # smart bots
 from .minimax_bot import *
+
+# charming mole
+from .charming_mole import *
