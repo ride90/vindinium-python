@@ -28,6 +28,10 @@ class CharmingMoleBot(BaseBot):
     # Custom friendly name (None = use own hero name)
     friendly_name = None
 
+    # HP threshold for opportunistic healing at nearby tavern
+    # If HP < this value and we're next to a tavern, heal immediately
+    NEARBY_TAVERN_HEAL_THRESHOLD = 80
+
     search = None
     _friendly_hero_ids = None  # Cache of friendly hero IDs
 
@@ -156,23 +160,380 @@ class CharmingMoleBot(BaseBot):
                         return False  # They should yield (we move)
         return False
 
+    # =========================================================================
+    # PHASE 1: SURVIVAL - Enemy Awareness & Danger Detection
+    # =========================================================================
+
+    def _get_enemies(self, include_crashed=False):
+        """Get list of enemy heroes (non-friendly, non-self).
+
+        Performance: O(3) iteration over other heroes. Negligible overhead.
+
+        Args:
+            include_crashed (bool): If True, include crashed/frozen enemies.
+                Crashed enemies are disconnected bots that don't move or attack.
+                Default is False (exclude crashed enemies).
+
+        Returns:
+            list: List of enemy Hero objects.
+        """
+        enemies = []
+        for hero in self.game.heroes:
+            if hero.id == self.hero.id:
+                continue
+            if self._is_friendly_hero(hero.id):
+                continue
+            # Skip crashed enemies unless explicitly requested
+            if not include_crashed and hero.crashed:
+                continue
+            enemies.append(hero)
+        return enemies
+
+    def _get_nearby_enemies(self, max_distance=3):
+        """Get enemies within a certain Manhattan distance.
+
+        Performance: O(3) iteration with O(1) distance calc. Negligible overhead.
+
+        Args:
+            max_distance (int): Maximum Manhattan distance to consider "nearby".
+
+        Returns:
+            list: List of (enemy, distance) tuples, sorted by distance.
+        """
+        nearby = []
+        for enemy in self._get_enemies():
+            dist = vin.utils.distance_manhattan(
+                self.hero.x, self.hero.y, enemy.x, enemy.y
+            )
+            if dist <= max_distance:
+                nearby.append((enemy, dist))
+        return sorted(nearby, key=lambda x: x[1])
+
+    def _is_enemy_dangerous(self, enemy, distance):
+        """Determine if an enemy is dangerous based on HP comparison and distance.
+
+        Combat rules in Vindinium:
+        - Each attack deals 20 damage
+        - If HP <= 20, hero dies
+        - Attacker (who moves into defender) attacks first
+
+        Args:
+            enemy: The enemy Hero object.
+            distance (int): Manhattan distance to the enemy.
+
+        Returns:
+            bool: True if the enemy poses a significant threat.
+        """
+        # If enemy is next to us (distance=1), they can attack us next turn
+        if distance == 1:
+            # Enemy can kill us if our HP <= 20
+            if self.hero.life <= 20:
+                return True
+            # Enemy is dangerous if they have more HP (they'd win a fight)
+            if enemy.life >= self.hero.life:
+                return True
+
+        # If enemy is 2 tiles away, they could reach us next turn
+        elif distance == 2:
+            # Only dangerous if we're low HP and they're healthy
+            if self.hero.life <= 40 and enemy.life > self.hero.life:
+                return True
+
+        return False
+
+    def _get_danger_level(self):
+        """Calculate overall danger level based on nearby enemies.
+
+        Returns:
+            tuple: (danger_level, closest_enemy) where:
+                - danger_level: 0=safe, 1=caution, 2=danger, 3=critical
+                - closest_enemy: The nearest enemy Hero or None
+        """
+        nearby = self._get_nearby_enemies(max_distance=3)
+
+        if not nearby:
+            return (0, None)  # Safe - no enemies nearby
+
+        closest_enemy, closest_dist = nearby[0]
+
+        # Critical: enemy next to us and we'd lose the fight
+        if closest_dist == 1 and self._is_enemy_dangerous(closest_enemy, closest_dist):
+            return (3, closest_enemy)
+
+        # Danger: enemy very close (2 tiles) and dangerous
+        if closest_dist == 2 and self._is_enemy_dangerous(closest_enemy, closest_dist):
+            return (2, closest_enemy)
+
+        # Caution: enemies nearby but not immediately threatening
+        if closest_dist <= 3:
+            return (1, closest_enemy)
+
+        return (0, None)
+
+    def _get_flee_direction(self, enemy):
+        """Calculate the best direction to flee from an enemy.
+
+        Tries to move away from the enemy. If blocked, tries perpendicular directions.
+
+        Args:
+            enemy: The enemy Hero to flee from.
+
+        Returns:
+            str: Direction to move ('North', 'South', 'East', 'West', 'Stay').
+        """
+        dx = self.hero.x - enemy.x  # Positive = we're to the right of enemy
+        dy = self.hero.y - enemy.y  # Positive = we're below enemy
+
+        # Prioritize moving away in the axis with greater distance
+        flee_options = []
+
+        if abs(dx) >= abs(dy):
+            # Prioritize horizontal flee
+            if dx > 0:
+                flee_options = ["East", "North", "South", "West"]
+            elif dx < 0:
+                flee_options = ["West", "North", "South", "East"]
+            else:
+                flee_options = ["North", "South", "East", "West"]
+        else:
+            # Prioritize vertical flee
+            if dy > 0:
+                flee_options = ["South", "East", "West", "North"]
+            elif dy < 0:
+                flee_options = ["North", "East", "West", "South"]
+            else:
+                flee_options = ["East", "West", "North", "South"]
+
+        # Try each flee direction, checking if it's safe
+        for direction in flee_options:
+            next_x, next_y = self._get_position_after_move(direction)
+
+            # Check if the tile is walkable (not wall, not tavern, not mine)
+            if not self._is_tile_walkable(next_x, next_y):
+                continue
+
+            # Check if we'd walk into another enemy
+            if self._would_hit_enemy(direction):
+                continue
+
+            # Check friendly fire
+            if self._would_hit_friendly(direction):
+                continue
+
+            return direction
+
+        return "Stay"  # No safe flee direction
+
+    def _is_tile_walkable(self, x, y):
+        """Check if a tile can be walked on.
+
+        Args:
+            x (int): X coordinate.
+            y (int): Y coordinate.
+
+        Returns:
+            bool: True if the tile is walkable (empty or spawn).
+        """
+        try:
+            tile = self.game.map[x, y]
+            # TILE_EMPTY = 0, TILE_SPAWN = 5 are walkable
+            # TILE_WALL = 1, TILE_TAVERN = 3, TILE_MINE = 4 are not
+            return tile in (0, 5)  # Empty or spawn point
+        except (IndexError, KeyError):
+            return False  # Out of bounds
+
+    def _would_hit_enemy(self, command):
+        """Check if a move would walk into an enemy hero.
+
+        Args:
+            command (str): The move command to check.
+
+        Returns:
+            bool: True if the move would walk into an enemy.
+        """
+        next_x, next_y = self._get_position_after_move(command)
+
+        for enemy in self._get_enemies():
+            if enemy.x == next_x and enemy.y == next_y:
+                return True
+        return False
+
+    # =========================================================================
+    # PHASE 1: SURVIVAL - Nearby Tavern Optimization
+    # =========================================================================
+
+    def _get_nearby_tavern(self):
+        """Find a tavern next to the hero's current position (1 tile away).
+
+        Performance: O(T) where T is number of taverns (typically 4-8).
+        With distance check, effectively O(1) per tavern.
+
+        Returns:
+            Tavern: A neighboring tavern, or None if no tavern is next to us.
+        """
+        for tavern in self.game.taverns:
+            dist = vin.utils.distance_manhattan(
+                self.hero.x, self.hero.y, tavern.x, tavern.y
+            )
+            if dist == 1:
+                return tavern
+        return None
+
+    def _move_to_nearby_tavern(self, tavern):
+        """Get the move command to step into a neighboring tavern.
+
+        Args:
+            tavern: The neighboring Tavern object.
+
+        Returns:
+            str: Direction to move to reach the tavern.
+        """
+        return vin.utils.path_to_command(
+            self.hero.x, self.hero.y, tavern.x, tavern.y
+        )
+
+    def _should_heal_at_nearby_tavern(self):
+        """Determine if we should heal at a neighboring tavern.
+
+        Heals if:
+        - There's a tavern next to us (1 tile away)
+        - We have enough gold (>= 2)
+        - HP is below NEARBY_TAVERN_HEAL_THRESHOLD, or < 100 if enemies nearby
+
+        Returns:
+            tuple: (should_heal, tavern) or (False, None)
+        """
+        if self.hero.gold < 2:
+            return (False, None)
+
+        tavern = self._get_nearby_tavern()
+        if tavern is None:
+            return (False, None)
+
+        danger_level, _ = self._get_danger_level()
+
+        # If in danger, heal more aggressively
+        if danger_level >= 2 and self.hero.life < 100:
+            return (True, tavern)
+
+        # Normal case: heal if HP < threshold (configurable via class attribute)
+        if self.hero.life < self.NEARBY_TAVERN_HEAL_THRESHOLD:
+            return (True, tavern)
+
+        return (False, None)
+
+    # =========================================================================
+    # MAIN DECISION LOGIC
+    # =========================================================================
+
     def _do_move(self):
-        """Decide the next move based on health and mine ownership.
+        """Decide the next move with survival-first priority.
+
+        Decision priority:
+        1. Nearby tavern healing (opportunistic, almost free)
+        2. Flee from critical danger (survival)
+        3. Go to tavern if low HP
+        4. Normal mining behavior
 
         Returns:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
-        if self.hero.life < 50 and self.hero.gold > 2:
+        # Priority 1: Opportunistic healing at nearby tavern
+        # Performance: O(T) tavern check + O(3) danger check = negligible
+        should_heal, tavern = self._should_heal_at_nearby_tavern()
+        if should_heal:
+            return self._move_to_nearby_tavern(tavern)
+
+        # Priority 2: Flee from critical danger
+        danger_level, closest_enemy = self._get_danger_level()
+        if danger_level >= 3:  # Critical - enemy next to us and dangerous
+            # Try to flee
+            flee_cmd = self._get_flee_direction(closest_enemy)
+            if flee_cmd != "Stay":
+                return flee_cmd
+            # Can't flee - go to tavern if possible
+            if self.hero.gold >= 2:
+                return self._go_to_nearest_tavern()
+
+        # Priority 3: Go to tavern if low HP (danger-aware threshold)
+        # hp_threshold = 50 if danger_level == 0 else 70  # More conservative when enemies near
+        hp_threshold = 70
+        if self.hero.life < hp_threshold and self.hero.gold >= 2:
             command = self._go_to_nearest_tavern()
         else:
+            # Priority 4: Normal mining behavior
             command = self._go_to_nearest_mine()
 
-        # Friendly fire avoidance: don't walk into friendly heroes
+        # Safety check: don't walk into enemies unless we'd win
+        if self._would_walk_into_danger(command):
+            # Try to find a safer path or stay
+            safe_cmd = self._find_safe_alternative(command)
+            if safe_cmd:
+                command = safe_cmd
+
+        # Friendly fire avoidance (existing logic)
         # Performance: O(3) check with O(1) set lookup
         if self._would_hit_friendly(command):
             return "Stay"
 
         return command
+
+    def _would_walk_into_danger(self, command):
+        """Check if a move would put us in a dangerous position.
+
+        Args:
+            command (str): The move command to check.
+
+        Returns:
+            bool: True if the move is dangerous.
+        """
+        next_x, next_y = self._get_position_after_move(command)
+
+        for enemy in self._get_enemies():
+            dist = vin.utils.distance_manhattan(next_x, next_y, enemy.x, enemy.y)
+
+            # Would walk into enemy - only safe if we'd win
+            if dist == 0:
+                # We attack first (we're moving into them)
+                # We win if: enemy.life <= 20 (we kill them)
+                # Or if: our life > enemy.life (we'd survive longer)
+                if enemy.life <= 20:
+                    return False  # Safe - we'd kill them
+                if self.hero.life > enemy.life + 20:
+                    return False  # Safe - we'd win the exchange
+                return True  # Dangerous
+
+            # Would end up next to enemy
+            if dist == 1:
+                # They attack us next turn
+                if self.hero.life <= 40 and enemy.life > 20:
+                    return True  # Dangerous - we could die in 2 hits
+
+        return False
+
+    def _find_safe_alternative(self, original_command):
+        """Try to find a safer alternative to the original command.
+
+        Args:
+            original_command (str): The original intended move.
+
+        Returns:
+            str: A safer alternative command, or None if none found.
+        """
+        # Try all directions except the dangerous one
+        all_directions = ["North", "South", "East", "West", "Stay"]
+
+        for direction in all_directions:
+            if direction == original_command:
+                continue
+
+            if not self._would_walk_into_danger(direction):
+                if not self._would_hit_friendly(direction):
+                    next_x, next_y = self._get_position_after_move(direction)
+                    if self._is_tile_walkable(next_x, next_y):
+                        return direction
+
+        return "Stay"  # No safe alternative, just stay
 
     def _go_to_nearest_mine(self):
         """Navigate to the nearest mine not owned by this bot or friendly bots.
