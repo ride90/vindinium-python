@@ -19,3 +19,4 @@ from .minimax_bot import *
 # charming mole
 from .charming_mole import *
 from .charming_mole_v1 import *
+from .charming_mole_v1_minimax import *
