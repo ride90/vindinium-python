@@ -707,14 +707,18 @@ class CharmingMoleBotV1(BaseBot):
         Returns:
             str: Direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
-        path = self.search.find_path(
-            (self.hero.x, self.hero.y),
-            (enemy.x, enemy.y)
-        )
+        x = self.hero.x
+        y = self.hero.y
 
-        if path and len(path) > 1:
-            next_pos = path[1]
-            return self._get_direction_to(next_pos[0], next_pos[1])
+        # Compute path to the enemy
+        path = self.search.find(x, y, enemy.x, enemy.y)
+
+        if path is None:
+            return "Stay"
+
+        if len(path) > 0:
+            next_x, next_y = path[0]
+            return vin.utils.path_to_command(x, y, next_x, next_y)
 
         return "Stay"
 
@@ -1015,7 +1019,8 @@ class CharmingMoleBotV1(BaseBot):
         if kill_target is not None:
             command = self._go_to_enemy(kill_target)
             self._prev_life = self.hero.life
-            return command
+            if command != "Stay":
+                return command
 
         # Priority 5: Normal mining behavior (with mine value calculation)
         command = self._go_to_nearest_mine()
