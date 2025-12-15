@@ -272,7 +272,7 @@ class CharmingMoleBotV1(BaseBot):
 
     # Minimum mines the enemy must have for us to bother chasing
     # Set to 0 to attack any weak enemy, higher to only chase mine-rich enemies
-    OPPORTUNISTIC_KILL_MIN_ENEMY_MINES = 1
+    OPPORTUNISTIC_KILL_MIN_ENEMY_MINES = 2
 
     # Minimum HP we need to attempt an opportunistic kill
     # Don't chase enemies if we're too weak ourselves
@@ -647,11 +647,11 @@ class CharmingMoleBotV1(BaseBot):
             return False
 
         # Check if enemy is weak enough (absolute threshold)
-        if enemy.mine_count == 1:
+        if enemy.mine_count <= 1:
             heuristics_modifier = 1
         else:
             heuristics_modifier = enemy.mine_count / 2
-        heuristics_threshold = heuristics_modifier * OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD
+        heuristics_threshold = heuristics_modifier * self.OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD
         if enemy.life > heuristics_threshold:
             return False
 
@@ -997,13 +997,28 @@ class CharmingMoleBotV1(BaseBot):
             self._prev_life = self.hero.life
             return command
 
-        # Priority 2: Flee from critical danger (configurable threshold)
+        # Priority 2: Flee from critical danger OR pub fight stalemate
         danger_level, closest_enemy = self._get_danger_level()
-        closest_tavern = self._get_nearby_tavern()
-        if danger_level >= self.FLEE_DANGER_THRESHOLD or (
-            vin.utils.distance_manhattan(self.hero.x0, self.hero.y0, closest_enemy.x0, closest_enemy.y0) == 1 and
-            vin.utils.distance_manhattan(self.closest_tavern.x0, self.closest_tavern.y0, closest_enemy.x0, closest_enemy.y0) ==
-            ):
+
+        # Check for pub fight stalemate: we're adjacent to enemy who is near ANY tavern
+        is_pub_fight = False
+        if closest_enemy is not None:
+            enemy_dist = vin.utils.distance_manhattan(
+                self.hero.x, self.hero.y,
+                closest_enemy.x, closest_enemy.y
+            )
+            if enemy_dist == 1:  # We're fighting (adjacent to enemy)
+                # Check if enemy is near ANY tavern (they can just heal)
+                for tavern in self.game.taverns:
+                    tavern_to_enemy = vin.utils.distance_manhattan(
+                        tavern.x, tavern.y,
+                        closest_enemy.x, closest_enemy.y
+                    )
+                    if tavern_to_enemy <= 1:  # Enemy adjacent to tavern
+                        is_pub_fight = True
+                        break
+
+        if danger_level >= self.FLEE_DANGER_THRESHOLD or is_pub_fight:
             # Try to flee
             flee_cmd = self._get_flee_direction(closest_enemy)
             if flee_cmd != "Stay":
