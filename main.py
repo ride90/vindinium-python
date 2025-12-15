@@ -24,6 +24,7 @@ def get_bot_class(bot_name):
     available_bots = {
         'RandomBot': vindinium.bots.RandomBot,
         'CharmingMoleBot': vindinium.bots.CharmingMoleBot,
+        'CharmingMoleBotV1': vindinium.bots.CharmingMoleBotV1,
         'MinerBot': vindinium.bots.MinerBot,
         'AggressiveBot': vindinium.bots.AggressiveBot,
         'MinimaxBot': vindinium.bots.MinimaxBot,
