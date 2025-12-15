@@ -79,7 +79,7 @@ class Client:
         self.open_browser = open_browser
         self.debug = debug
         self.timeout_move = 15
-        self.timeout_connection = 10 * 60
+        self.timeout_connection = 30 * 60
 
         self._session = None
 
@@ -152,7 +152,7 @@ class Client:
 
         # Connect
         logging.info("Trying to connect to %s%s", server, endpoint)
-        r = self._session.post(server + endpoint, params, timeout=10 * 60)
+        r = self._session.post(server + endpoint, params, timeout=self.timeout_connection)
 
         # Get response
         if r.status_code == 200:
