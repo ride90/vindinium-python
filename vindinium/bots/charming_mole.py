@@ -182,11 +182,11 @@ class CharmingMoleBot(BaseBot):
 
     # Enable/disable danger checking before moves
     # Set False for aggressive play (ignore enemies, just mine)
-    DANGER_CHECK_ENABLED = False
+    DANGER_CHECK_ENABLED = True
 
     # Only check danger if HP is below this threshold
     # Set to 100 to always check, 0 to never check
-    DANGER_CHECK_HP_THRESHOLD = 40
+    DANGER_CHECK_HP_THRESHOLD = 15
 
     # Allow "Stay" as fallback when no safe move found
     # False = always move somewhere (more aggressive)
