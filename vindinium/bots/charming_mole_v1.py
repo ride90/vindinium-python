@@ -264,7 +264,7 @@ class CharmingMoleBotV1(BaseBot):
 
     # HP threshold for considering an enemy "weak" (absolute)
     # Enemy must have HP <= this value to be considered a target
-    OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD = 20
+    OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD = 60
 
     # Minimum HP advantage we need over the enemy
     # We attack if: our_hp >= enemy_hp + this value
@@ -647,7 +647,12 @@ class CharmingMoleBotV1(BaseBot):
             return False
 
         # Check if enemy is weak enough (absolute threshold)
-        if enemy.life > self.OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD:
+        if enemy.mine_count == 1:
+            heuristics_modifier = 1
+        else:
+            heuristics_modifier = enemy.mine_count / 2
+        heuristics_threshold = heuristics_modifier * OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD
+        if enemy.life > heuristics_threshold:
             return False
 
         # Check HP advantage
