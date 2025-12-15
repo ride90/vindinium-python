@@ -50,12 +50,18 @@ class CharmingMoleBotV1(BaseBot):
         → Don't steal their mines
         → Use hero ID priority to break deadlocks
 
+    Respawn Detection: If RESPAWN_DETECTION_ENABLED:
+        → Detect death (HP <= 20 → 100)
+        → Clear cached destination (don't path to old target)
+        → Play aggressively for RESPAWN_AGGRESSIVE_TURNS turns
+        → Use opening-phase HP thresholds during recovery
+
     GAME PHASES
     ===========
     - Opening (0% - PHASE_OPENING_END): Aggressive mining, low HP threshold
     - Mid (PHASE_OPENING_END - PHASE_MID_END): Balanced play
     - End (PHASE_MID_END - 100%): Conservative, protect lead
-    # TODO: End be conservative if rich.
+    - Post-Respawn: Temporary "opening" phase for RESPAWN_AGGRESSIVE_TURNS turns
 
     CONFIGURATION
     =============
@@ -113,6 +119,14 @@ class CharmingMoleBotV1(BaseBot):
 
         ALLOW_STAY_AS_FALLBACK (bool): Allow "Stay" when no safe move found.
             Default: False. If False, picks any non-dangerous move instead.
+
+    Respawn Detection Settings:
+        RESPAWN_DETECTION_ENABLED (bool): Enable respawn detection and strategy reset.
+            Default: True. When enabled, bot detects death and resets strategy.
+
+        RESPAWN_AGGRESSIVE_TURNS (int): Turns to play aggressively after respawn.
+            Default: 10. During this period, uses opening-phase HP thresholds.
+            Set to 0 to disable post-respawn aggressive behavior.
 
     PERFORMANCE
     ===========
@@ -194,21 +208,45 @@ class CharmingMoleBotV1(BaseBot):
     ALLOW_STAY_AS_FALLBACK = False
 
     # =========================================================================
+    # RESPAWN DETECTION SETTINGS
+    # =========================================================================
+
+    # Enable/disable respawn detection and strategy reset
+    # When enabled, after dying the bot will:
+    # 1. Clear any cached destination (don't path to old target)
+    # 2. Play aggressively for RESPAWN_AGGRESSIVE_TURNS turns
+    # 3. Prioritize nearby mines over distant ones
+    RESPAWN_DETECTION_ENABLED = True
+
+    # Number of turns to play aggressively after respawn
+    # During this period, bot uses opening-phase HP thresholds
+    # Set to 0 to disable aggressive post-respawn behavior
+    RESPAWN_AGGRESSIVE_TURNS = 10
+
+    # =========================================================================
     # INTERNAL STATE
     # =========================================================================
 
     search = None
     _friendly_hero_ids = None  # Cache of friendly hero IDs
     _prev_life = None          # Track previous life for respawn detection
+    _respawn_turn = None       # Turn when we last respawned
+    _cached_destination = None # Cached destination (x, y) - cleared on respawn
 
     def _do_start(self):
-        """Initialize the A* pathfinding algorithm and friendly hero detection.
+        """Initialize the A* pathfinding algorithm and internal state.
 
-        Called when the game starts to set up the pathfinding system
-        and identify friendly heroes (same name) for friendly fire avoidance.
+        Called when the game starts to set up:
+        - A* pathfinding system
+        - Friendly hero detection
+        - Respawn tracking state
         """
         self.search = AStar(self.game.map)
         self._update_friendly_heroes()
+        # Initialize respawn tracking
+        self._prev_life = self.hero.life
+        self._respawn_turn = None
+        self._cached_destination = None
 
     def _update_friendly_heroes(self):
         """Identify and cache friendly hero IDs based on name matching.
@@ -592,16 +630,68 @@ class CharmingMoleBotV1(BaseBot):
     # PHASE 2: STOP WASTING - Game Phase Awareness & Mine Value
     # =========================================================================
 
+    def _check_and_handle_respawn(self):
+        """Check if we just respawned and handle strategy reset.
+
+        Respawn is detected when:
+        - Previous life was <= 20 (we were about to die or dead)
+        - Current life is 100 (we respawned with full HP)
+
+        When respawn is detected (and RESPAWN_DETECTION_ENABLED):
+        1. Record the respawn turn for aggressive phase tracking
+        2. Clear cached destination (don't path to old target)
+
+        Returns:
+            bool: True if we just respawned, False otherwise.
+        """
+        if not self.RESPAWN_DETECTION_ENABLED:
+            return False
+
+        # Detect respawn: previous life was very low, now at 100
+        just_respawned = (
+            self._prev_life is not None
+            and self._prev_life <= 20
+            and self.hero.life == 100
+        )
+
+        if just_respawned:
+            # Record respawn turn for aggressive phase tracking
+            self._respawn_turn = self.game.turn
+            # Clear cached destination - don't path to old target
+            self._cached_destination = None
+            return True
+
+        return False
+
+    def _is_in_post_respawn_phase(self):
+        """Check if we're still in the aggressive post-respawn phase.
+
+        After respawning, we play aggressively for RESPAWN_AGGRESSIVE_TURNS
+        turns to quickly recover mines and gold.
+
+        Returns:
+            bool: True if in post-respawn aggressive phase.
+        """
+        if not self.RESPAWN_DETECTION_ENABLED:
+            return False
+
+        if self._respawn_turn is None:
+            return False
+
+        turns_since_respawn = self.game.turn - self._respawn_turn
+        return turns_since_respawn < self.RESPAWN_AGGRESSIVE_TURNS
+
     def _get_game_phase(self):
         """Determine the current game phase based on turn progress.
 
         Phases:
-        - "opening": First 25% of game - aggressive mining, less healing
-        - "mid": 25-85% of game - balanced play
-        - "end": Last 15% of game - conservative, protect lead
+        - "opening": First PHASE_OPENING_END% of game OR post-respawn aggressive phase
+        - "mid": PHASE_OPENING_END% to PHASE_MID_END% of game
+        - "end": Last (100 - PHASE_MID_END)% of game
 
-        Also detects respawn (just died and came back with 100 HP),
-        which resets to "opening" mentality temporarily.
+        Post-respawn behavior (if RESPAWN_DETECTION_ENABLED):
+        - After dying, plays like "opening" for RESPAWN_AGGRESSIVE_TURNS turns
+        - This allows quick recovery of mines without over-healing
 
         Returns:
             str: "opening", "mid", or "end"
@@ -611,15 +701,12 @@ class CharmingMoleBotV1(BaseBot):
         max_turns = self.game.max_turns
         progress = turn / max_turns if max_turns > 0 else 0
 
-        # Detect respawn: previous life was very low, now at 100
-        just_respawned = (
-            self._prev_life is not None
-            and self._prev_life <= 20
-            and self.hero.life == 100
-        )
+        # Check if in post-respawn aggressive phase
+        if self._is_in_post_respawn_phase():
+            return "opening"
 
-        # After respawn, play like opening (aggressive mining to recover)
-        if just_respawned or progress < self.PHASE_OPENING_END:
+        # Normal phase calculation
+        if progress < self.PHASE_OPENING_END:
             return "opening"
         elif progress < self.PHASE_MID_END:
             return "mid"
@@ -717,6 +804,7 @@ class CharmingMoleBotV1(BaseBot):
         """Decide the next move with configurable survival/aggression balance.
 
         Decision priority (configurable via class attributes):
+        0. Check for respawn (reset strategy if just died)
         1. Nearby tavern healing (if HP < NEARBY_TAVERN_HEAL_THRESHOLD)
         2. Flee from danger (if danger_level >= FLEE_DANGER_THRESHOLD)
         3. Go to tavern if low HP (phase-aware + DANGER_HP_MODIFIER)
@@ -726,9 +814,16 @@ class CharmingMoleBotV1(BaseBot):
         - Check if move walks into danger
         - Find safe alternative or use ALLOW_STAY_AS_FALLBACK
 
+        Respawn handling (if RESPAWN_DETECTION_ENABLED):
+        - Clears cached destination on respawn
+        - Plays aggressively for RESPAWN_AGGRESSIVE_TURNS turns
+
         Returns:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
+        # Priority 0: Check for respawn and reset strategy
+        self._check_and_handle_respawn()
+
         # Priority 1: Opportunistic healing at nearby tavern
         should_heal, tavern = self._should_heal_at_nearby_tavern()
         if should_heal:
