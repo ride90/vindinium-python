@@ -999,7 +999,11 @@ class CharmingMoleBotV1(BaseBot):
 
         # Priority 2: Flee from critical danger (configurable threshold)
         danger_level, closest_enemy = self._get_danger_level()
-        if danger_level >= self.FLEE_DANGER_THRESHOLD:
+        closest_tavern = self._get_nearby_tavern()
+        if danger_level >= self.FLEE_DANGER_THRESHOLD or (
+            vin.utils.distance_manhattan(self.hero.x0, self.hero.y0, closest_enemy.x0, closest_enemy.y0) == 1 and
+            vin.utils.distance_manhattan(self.closest_tavern.x0, self.closest_tavern.y0, closest_enemy.x0, closest_enemy.y0) ==
+            ):
             # Try to flee
             flee_cmd = self._get_flee_direction(closest_enemy)
             if flee_cmd != "Stay":
