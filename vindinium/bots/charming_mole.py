@@ -1,4 +1,9 @@
-"""CharmingMole bot implementation that focuses on being a charming mole."""
+"""CharmingMole bot - A survival-focused mining bot with configurable aggression.
+
+This bot balances survival with mine acquisition using phase-aware decision making.
+It can be tuned from very cautious (high survival, fewer mines) to aggressive
+(more mines, more deaths) using class attributes.
+"""
 
 import random
 import vindinium as vin
@@ -9,38 +14,188 @@ __all__ = ["CharmingMoleBot"]
 
 
 class CharmingMoleBot(BaseBot):
-    """
-    CharmingMole bot implementation that focuses on being a charming mole.
+    """A survival-focused mining bot with configurable aggression levels.
+
+    ALGORITHM OVERVIEW
+    ==================
+    The bot uses a priority-based decision system, evaluated each turn:
+
+    Priority 1: OPPORTUNISTIC HEALING
+        If next to a tavern AND HP < NEARBY_TAVERN_HEAL_THRESHOLD AND gold >= 2:
+        → Heal (almost free, 1 turn for +50 HP)
+
+    Priority 2: FLEE FROM CRITICAL DANGER
+        If danger_level >= FLEE_DANGER_THRESHOLD (enemy adjacent + would kill us):
+        → Try to flee away from enemy
+        → If can't flee, go to nearest tavern
+
+    Priority 3: GO TO TAVERN (phase-aware)
+        If HP < dynamic_threshold AND gold >= 2:
+        → Go to nearest tavern
+        Dynamic threshold = HP_THRESHOLD_{phase} + DANGER_HP_MODIFIER (if enemies near)
+
+    Priority 4: MINE (with value calculation)
+        → Go to nearest mine that passes value check:
+          - Must hold for >= MIN_TURNS_TO_HOLD_MINE turns
+          - Must have enough HP for journey + capture
+        → Skip mines owned by self or friendly bots
+
+    Safety Layer: Before executing move, check if it would walk into danger.
+        If DANGER_CHECK_ENABLED and move is dangerous:
+        → Try to find safe alternative
+        → If ALLOW_STAY_AS_FALLBACK, may return "Stay"
+
+    Friendly Fire: If FRIENDLY_FIRE_AVOIDANCE enabled:
+        → Don't attack heroes with same name
+        → Don't steal their mines
+        → Use hero ID priority to break deadlocks
+
+    GAME PHASES
+    ===========
+    - Opening (0% - PHASE_OPENING_END): Aggressive mining, low HP threshold
+    - Mid (PHASE_OPENING_END - PHASE_MID_END): Balanced play
+    - End (PHASE_MID_END - 100%): Conservative, protect lead
+    # TODO: End be conservative if rich.
+
+    CONFIGURATION
+    =============
+    All behavior can be tuned via class attributes. Create a subclass to customize:
+
+    ```python
+    class AggressiveMole(CharmingMoleBot):
+        HP_THRESHOLD_OPENING = 25      # Heal less often
+        DANGER_HP_MODIFIER = 10        # Less scared of enemies
+        MIN_TURNS_TO_HOLD_MINE = 2     # Take more mines
+        FLEE_DANGER_THRESHOLD = 4      # Flee less often
+        DANGER_CHECK_ENABLED = False   # Ignore danger, just mine
+    ```
+
+    CONFIGURABLE ATTRIBUTES
+    =======================
+
+    Friendly Fire Settings:
+        FRIENDLY_FIRE_AVOIDANCE (bool): Don't attack same-name heroes. Default: True
+        friendly_name (str): Name to match for friendlies. Default: None (use own name)
+
+    Healing Thresholds:
+        NEARBY_TAVERN_HEAL_THRESHOLD (int): Heal if next to tavern and HP below this.
+            Default: 80. Range: 1-99. Higher = heal more often when convenient.
+
+        HP_THRESHOLD_OPENING (int): HP threshold in opening phase. Default: 30
+        HP_THRESHOLD_MID (int): HP threshold in mid phase. Default: 45
+        HP_THRESHOLD_END (int): HP threshold in end phase. Default: 55
+            Higher values = more conservative (heal more, mine less)
+
+        DANGER_HP_MODIFIER (int): Added to HP threshold when enemies nearby.
+            Default: 15. Range: 0-50. Higher = more scared of enemies.
+
+    Game Phase Boundaries:
+        PHASE_OPENING_END (float): End of opening phase. Default: 0.25 (25%)
+        PHASE_MID_END (float): End of mid phase. Default: 0.85 (85%)
+
+    # TODO: Adjust if rich and game phase.
+    Mine Value Calculation:
+        MIN_TURNS_TO_HOLD_MINE (int): Minimum turns to hold a mine for it to be
+            worth taking. Default: 2. Range: 1-20.
+            Lower = more aggressive (take distant mines late game)
+            Higher = more conservative (skip mines that won't pay off)
+
+    Danger/Fleeing Settings:
+        FLEE_DANGER_THRESHOLD (int): Danger level at which to flee. Default: 3.
+            Range: 1-4. Lower = flee more often. Higher = flee only when critical.
+            Danger levels: 1=enemy nearby, 2=enemy close, 3=enemy adjacent, 4=certain death
+
+        DANGER_CHECK_ENABLED (bool): Check if moves walk into danger. Default: True.
+            Set False for more aggressive play (ignore enemies, just mine).
+
+        DANGER_CHECK_HP_THRESHOLD (int): Only check danger if HP below this.
+            Default: 50. Set to 100 to always check, 0 to never check.
+
+        ALLOW_STAY_AS_FALLBACK (bool): Allow "Stay" when no safe move found.
+            Default: False. If False, picks any non-dangerous move instead.
+
+    PERFORMANCE
+    ===========
+    - Pathfinding: O(V log V) per A* call, cached map
+    - Enemy checks: O(E) where E = 3 enemies
+    - Mine ordering: O(M log M) where M = number of mines
+    - Overall: Fast enough for 15-second turn limit
 
     Attributes:
         search (AStar): The A* pathfinding instance for navigation.
-        FRIENDLY_FIRE_AVOIDANCE (bool): Class attribute to enable/disable friendly
-            fire avoidance. When enabled, the bot will not attack or steal mines
-            from heroes with the same name. Defaults to True.
-        friendly_name (str): The name to use for identifying friendly bots.
-            If None, uses the bot's own hero name. Can be set to a custom value
-            to coordinate with bots using different display names.
     """
 
-    # Configuration: Enable/disable friendly fire avoidance
+    # =========================================================================
+    # FRIENDLY FIRE SETTINGS
+    # =========================================================================
+
+    # Enable/disable friendly fire avoidance (don't attack same-name heroes)
     FRIENDLY_FIRE_AVOIDANCE = True
 
     # Custom friendly name (None = use own hero name)
     friendly_name = None
+
+    # =========================================================================
+    # HEALING THRESHOLDS
+    # =========================================================================
 
     # HP threshold for opportunistic healing at nearby tavern
     # If HP < this value and we're next to a tavern, heal immediately
     NEARBY_TAVERN_HEAL_THRESHOLD = 80
 
     # Phase-based HP thresholds for going to tavern
-    # Format: (opening, mid, end) - more conservative as game progresses
     HP_THRESHOLD_OPENING = 30  # Early game: aggressive, don't waste turns healing
     HP_THRESHOLD_MID = 45      # Mid game: balanced
     HP_THRESHOLD_END = 55      # Late game: conservative, protect mines
 
+    # HP modifier when enemies are nearby (added to phase threshold)
+    # Lower = more aggressive, Higher = more cautious
+    DANGER_HP_MODIFIER = 15
+
+    # =========================================================================
+    # GAME PHASE BOUNDARIES
+    # =========================================================================
+
     # Game phase boundaries (as percentage of max_turns)
     PHASE_OPENING_END = 0.25   # First 25% of game
     PHASE_MID_END = 0.85       # 25-85% is mid game, after 85% is endgame
+
+    # =========================================================================
+    # MINE VALUE CALCULATION
+    # =========================================================================
+
+    # Minimum turns to hold a mine for it to be worth taking
+    # Lower = more aggressive (take mines even late game)
+    # Higher = more conservative (skip mines that won't pay off)
+    MIN_TURNS_TO_HOLD_MINE = 2. # Was 5
+
+    # =========================================================================
+    # DANGER / FLEEING SETTINGS
+    # =========================================================================
+
+    # Danger level threshold for fleeing (1-4, higher = flee less often)
+    # 1 = flee if enemy within 3 tiles
+    # 2 = flee if enemy within 2 tiles
+    # 3 = flee if enemy adjacent (default)
+    # 4 = flee only if certain death
+    FLEE_DANGER_THRESHOLD = 3
+
+    # Enable/disable danger checking before moves
+    # Set False for aggressive play (ignore enemies, just mine)
+    DANGER_CHECK_ENABLED = True
+
+    # Only check danger if HP is below this threshold
+    # Set to 100 to always check, 0 to never check
+    DANGER_CHECK_HP_THRESHOLD = 50
+
+    # Allow "Stay" as fallback when no safe move found
+    # False = always move somewhere (more aggressive)
+    # True = stay put if all moves seem dangerous (more cautious)
+    ALLOW_STAY_AS_FALLBACK = False
+
+    # =========================================================================
+    # INTERNAL STATE
+    # =========================================================================
 
     search = None
     _friendly_hero_ids = None  # Cache of friendly hero IDs
@@ -487,11 +642,9 @@ class CharmingMoleBot(BaseBot):
     def _get_dynamic_hp_threshold(self, danger_level=0):
         """Get the HP threshold for going to tavern based on game phase and danger.
 
-        Early game: Low threshold (30) - don't waste turns healing
-        Mid game: Medium threshold (45) - balanced
-        Late game: High threshold (55) - protect mines, stay alive
-
-        Danger modifier: +20 HP if enemies are nearby
+        Uses class attributes for thresholds:
+        - HP_THRESHOLD_OPENING, HP_THRESHOLD_MID, HP_THRESHOLD_END
+        - DANGER_HP_MODIFIER (added when enemies nearby)
 
         Args:
             danger_level (int): Current danger level (0-3).
@@ -509,21 +662,19 @@ class CharmingMoleBot(BaseBot):
             base_threshold = self.HP_THRESHOLD_END
 
         # Add danger modifier: more conservative when enemies nearby
-        danger_modifier = 20 if danger_level >= 1 else 0
+        danger_modifier = self.DANGER_HP_MODIFIER if danger_level >= 1 else 0
 
         return base_threshold + danger_modifier
 
     def _is_mine_worth_taking(self, mine_x, mine_y):
         """Calculate if taking a mine is worth it based on remaining turns.
 
+        Uses MIN_TURNS_TO_HOLD_MINE to determine minimum payoff.
+
         A mine is worth taking if:
         1. We can reach it before the game ends
-        2. We'll hold it long enough to earn back the HP cost (20)
+        2. We'll hold it for >= MIN_TURNS_TO_HOLD_MINE turns
         3. We have enough HP to survive the capture
-
-        The value calculation:
-        - Cost: 20 HP + travel_distance turns
-        - Benefit: 1 gold per turn for remaining_turns - travel_distance
 
         Args:
             mine_x (int): X coordinate of the mine.
@@ -546,14 +697,13 @@ class CharmingMoleBot(BaseBot):
         # Turns we'd hold the mine
         turns_holding = remaining - distance
 
-        # Not worth it if we'd hold for less than 5 turns
-        # (arbitrary threshold, but captures the "don't chase distant mines late game" idea)
-        if turns_holding < 5:
+        # Not worth it if we'd hold for less than MIN_TURNS_TO_HOLD_MINE
+        if turns_holding < self.MIN_TURNS_TO_HOLD_MINE:
             return False
 
         # Check if we have enough HP to survive the journey + capture
-        # Need: travel HP loss (1 per turn) + capture cost (20) + buffer (10)
-        hp_needed = distance + 20 + 10
+        # Need: travel HP loss (1 per turn) + capture cost (20) + small buffer (5)
+        hp_needed = distance + 20 + 5
         if self.hero.life < hp_needed:
             return False
 
@@ -564,28 +714,31 @@ class CharmingMoleBot(BaseBot):
     # =========================================================================
 
     def _do_move(self):
-        """Decide the next move with survival-first priority.
+        """Decide the next move with configurable survival/aggression balance.
 
-        Decision priority:
-        1. Nearby tavern healing (opportunistic, almost free)
-        2. Flee from critical danger (survival)
-        3. Go to tavern if low HP (dynamic threshold based on game phase)
-        4. Normal mining behavior (with mine value calculation)
+        Decision priority (configurable via class attributes):
+        1. Nearby tavern healing (if HP < NEARBY_TAVERN_HEAL_THRESHOLD)
+        2. Flee from danger (if danger_level >= FLEE_DANGER_THRESHOLD)
+        3. Go to tavern if low HP (phase-aware + DANGER_HP_MODIFIER)
+        4. Normal mining behavior (with MIN_TURNS_TO_HOLD_MINE check)
+
+        Safety layer (if DANGER_CHECK_ENABLED):
+        - Check if move walks into danger
+        - Find safe alternative or use ALLOW_STAY_AS_FALLBACK
 
         Returns:
             str: The direction to move ('North', 'South', 'East', 'West', 'Stay').
         """
         # Priority 1: Opportunistic healing at nearby tavern
-        # Performance: O(T) tavern check + O(3) danger check = negligible
         should_heal, tavern = self._should_heal_at_nearby_tavern()
         if should_heal:
             command = self._move_to_nearby_tavern(tavern)
-            self._prev_life = self.hero.life  # Track for respawn detection
+            self._prev_life = self.hero.life
             return command
 
-        # Priority 2: Flee from critical danger
+        # Priority 2: Flee from critical danger (configurable threshold)
         danger_level, closest_enemy = self._get_danger_level()
-        if danger_level >= 3:  # Critical - enemy next to us and dangerous
+        if danger_level >= self.FLEE_DANGER_THRESHOLD:
             # Try to flee
             flee_cmd = self._get_flee_direction(closest_enemy)
             if flee_cmd != "Stay":
@@ -597,8 +750,7 @@ class CharmingMoleBot(BaseBot):
                 self._prev_life = self.hero.life
                 return command
 
-        # Priority 3: Go to tavern if low HP (dynamic threshold based on game phase)
-        # Phase-aware: opening=30, mid=45, end=55, +20 if enemies nearby
+        # Priority 3: Go to tavern if low HP (phase-aware threshold)
         hp_threshold = self._get_dynamic_hp_threshold(danger_level)
 
         if self.hero.life < hp_threshold and self.hero.gold >= 2:
@@ -607,15 +759,14 @@ class CharmingMoleBot(BaseBot):
             # Priority 4: Normal mining behavior (with mine value calculation)
             command = self._go_to_nearest_mine()
 
-        # Safety check: don't walk into enemies unless we'd win
-        if self._would_walk_into_danger(command):
-            # Try to find a safer path or stay
-            safe_cmd = self._find_safe_alternative(command)
-            if safe_cmd:
-                command = safe_cmd
+        # Safety check: don't walk into enemies (configurable)
+        if self.DANGER_CHECK_ENABLED and self.hero.life < self.DANGER_CHECK_HP_THRESHOLD:
+            if self._would_walk_into_danger(command):
+                safe_cmd = self._find_safe_alternative(command)
+                if safe_cmd:
+                    command = safe_cmd
 
-        # Friendly fire avoidance (existing logic)
-        # Performance: O(3) check with O(1) set lookup
+        # Friendly fire avoidance
         if self._would_hit_friendly(command):
             self._prev_life = self.hero.life
             return "Stay"
@@ -627,49 +778,53 @@ class CharmingMoleBot(BaseBot):
     def _would_walk_into_danger(self, command):
         """Check if a move would put us in a dangerous position.
 
+        This check is RELAXED to avoid blocking good moves:
+        - Only dangerous if walking INTO an enemy who would kill us
+        - Adjacent enemies are NOT considered dangerous (we can fight)
+
         Args:
             command (str): The move command to check.
 
         Returns:
-            bool: True if the move is dangerous.
+            bool: True if the move is dangerous (would result in death).
         """
         next_x, next_y = self._get_position_after_move(command)
 
         for enemy in self._get_enemies():
             dist = vin.utils.distance_manhattan(next_x, next_y, enemy.x, enemy.y)
 
-            # Would walk into enemy - only safe if we'd win
+            # Would walk into enemy - only dangerous if we'd die
             if dist == 0:
-                # We attack first (we're moving into them)
-                # We win if: enemy.life <= 20 (we kill them)
-                # Or if: our life > enemy.life (we'd survive longer)
+                # We attack first (we're moving into them), dealing 20 damage
+                # Safe if: enemy dies (life <= 20)
                 if enemy.life <= 20:
-                    return False  # Safe - we'd kill them
-                if self.hero.life > enemy.life + 20:
-                    return False  # Safe - we'd win the exchange
-                return True  # Dangerous
+                    return False  # Safe - we kill them
 
-            # Would end up next to enemy
-            if dist == 1:
-                # They attack us next turn
-                if self.hero.life <= 40 and enemy.life > 20:
-                    return True  # Dangerous - we could die in 2 hits
+                # Safe if: we have significantly more HP (we'd win the fight)
+                if self.hero.life > enemy.life:
+                    return False  # Safe - we're stronger
 
-        return False
+                # Dangerous only if we'd likely die
+                if self.hero.life <= 20:
+                    return True  # We'd die on their counter-attack
+
+        return False  # Not dangerous - go for it
 
     def _find_safe_alternative(self, original_command):
         """Try to find a safer alternative to the original command.
+
+        Uses ALLOW_STAY_AS_FALLBACK to determine behavior when no safe move found.
 
         Args:
             original_command (str): The original intended move.
 
         Returns:
-            str: A safer alternative command, or None if none found.
+            str: A safer alternative command, or original if ALLOW_STAY_AS_FALLBACK=False.
         """
-        # Try all directions except the dangerous one
-        all_directions = ["North", "South", "East", "West", "Stay"]
+        # Try all directions except the dangerous one (exclude Stay initially)
+        movement_directions = ["North", "South", "East", "West"]
 
-        for direction in all_directions:
+        for direction in movement_directions:
             if direction == original_command:
                 continue
 
@@ -679,7 +834,12 @@ class CharmingMoleBot(BaseBot):
                     if self._is_tile_walkable(next_x, next_y):
                         return direction
 
-        return "Stay"  # No safe alternative, just stay
+        # No safe movement found
+        if self.ALLOW_STAY_AS_FALLBACK:
+            return "Stay"
+        else:
+            # Return original command - be aggressive, don't stay still
+            return original_command
 
     def _go_to_nearest_mine(self):
         """Navigate to the nearest worthwhile mine not owned by this bot or friendly bots.
