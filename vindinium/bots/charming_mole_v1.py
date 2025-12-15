@@ -34,7 +34,15 @@ class CharmingMoleBotV1(BaseBot):
         → Go to nearest tavern
         Dynamic threshold = HP_THRESHOLD_{phase} + DANGER_HP_MODIFIER (if enemies near)
 
-    Priority 4: MINE (with value calculation)
+    Priority 4: OPPORTUNISTIC KILL (if OPPORTUNISTIC_KILLS_ENABLED)
+        → Find weak enemies within OPPORTUNISTIC_KILL_MAX_DISTANCE
+        → Target must have HP <= OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD
+        → We must have HP advantage >= OPPORTUNISTIC_KILL_HP_ADVANTAGE
+        → Target must have >= OPPORTUNISTIC_KILL_MIN_ENEMY_MINES mines
+        → We must have >= OPPORTUNISTIC_KILL_MIN_OUR_HP HP
+        → Prioritize by: mines owned (desc), then low HP, then close distance
+
+    Priority 5: MINE (with value calculation)
         → Go to nearest mine that passes value check:
           - Must hold for >= MIN_TURNS_TO_HOLD_MINE turns
           - Must have enough HP for journey + capture
@@ -127,6 +135,25 @@ class CharmingMoleBotV1(BaseBot):
         RESPAWN_AGGRESSIVE_TURNS (int): Turns to play aggressively after respawn.
             Default: 10. During this period, uses opening-phase HP thresholds.
             Set to 0 to disable post-respawn aggressive behavior.
+
+    Opportunistic Kills Settings:
+        OPPORTUNISTIC_KILLS_ENABLED (bool): Enable hunting weak enemies.
+            Default: True. When enabled, bot will chase and kill weak enemies.
+
+        OPPORTUNISTIC_KILL_MAX_DISTANCE (int): Max distance to chase enemy.
+            Default: 5. Lower = only attack nearby, Higher = chase further.
+
+        OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD (int): Enemy HP must be <= this.
+            Default: 20. Only attack enemies with HP at or below this value.
+
+        OPPORTUNISTIC_KILL_HP_ADVANTAGE (int): Required HP advantage over enemy.
+            Default: 20. We attack if our_hp >= enemy_hp + this value.
+
+        OPPORTUNISTIC_KILL_MIN_ENEMY_MINES (int): Min mines enemy must have.
+            Default: 1. Set to 0 to attack any weak enemy.
+
+        OPPORTUNISTIC_KILL_MIN_OUR_HP (int): Min HP we need to attempt kill.
+            Default: 40. Don't chase if we're too weak ourselves.
 
     PERFORMANCE
     ===========
@@ -222,6 +249,34 @@ class CharmingMoleBotV1(BaseBot):
     # During this period, bot uses opening-phase HP thresholds
     # Set to 0 to disable aggressive post-respawn behavior
     RESPAWN_AGGRESSIVE_TURNS = 10
+
+    # =========================================================================
+    # OPPORTUNISTIC KILLS SETTINGS
+    # =========================================================================
+
+    # Enable/disable opportunistic kills
+    # When enabled, bot will hunt weak enemies to steal their mines
+    OPPORTUNISTIC_KILLS_ENABLED = True
+
+    # Maximum distance to chase a weak enemy (Manhattan distance)
+    # Lower = only attack very close enemies, Higher = chase further
+    OPPORTUNISTIC_KILL_MAX_DISTANCE = 5
+
+    # HP threshold for considering an enemy "weak" (absolute)
+    # Enemy must have HP <= this value to be considered a target
+    OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD = 20
+
+    # Minimum HP advantage we need over the enemy
+    # We attack if: our_hp >= enemy_hp + this value
+    OPPORTUNISTIC_KILL_HP_ADVANTAGE = 20
+
+    # Minimum mines the enemy must have for us to bother chasing
+    # Set to 0 to attack any weak enemy, higher to only chase mine-rich enemies
+    OPPORTUNISTIC_KILL_MIN_ENEMY_MINES = 1
+
+    # Minimum HP we need to attempt an opportunistic kill
+    # Don't chase enemies if we're too weak ourselves
+    OPPORTUNISTIC_KILL_MIN_OUR_HP = 40
 
     # =========================================================================
     # INTERNAL STATE
@@ -563,6 +618,107 @@ class CharmingMoleBotV1(BaseBot):
         return False
 
     # =========================================================================
+    # PHASE 3: OPPORTUNISTIC KILLS - Hunt Weak Enemies
+    # =========================================================================
+
+    def _is_enemy_worth_killing(self, enemy, distance):
+        """Determine if an enemy is worth chasing for an opportunistic kill.
+
+        An enemy is worth killing if:
+        1. They're within OPPORTUNISTIC_KILL_MAX_DISTANCE
+        2. They're weak (HP <= OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD)
+        3. We have HP advantage (our_hp >= enemy_hp + OPPORTUNISTIC_KILL_HP_ADVANTAGE)
+        4. They have enough mines (>= OPPORTUNISTIC_KILL_MIN_ENEMY_MINES)
+        5. We have enough HP ourselves (>= OPPORTUNISTIC_KILL_MIN_OUR_HP)
+
+        Args:
+            enemy: The enemy Hero to evaluate.
+            distance (int): Manhattan distance to the enemy.
+
+        Returns:
+            bool: True if the enemy is worth killing.
+        """
+        # Check distance
+        if distance > self.OPPORTUNISTIC_KILL_MAX_DISTANCE:
+            return False
+
+        # Check if we have enough HP
+        if self.hero.life < self.OPPORTUNISTIC_KILL_MIN_OUR_HP:
+            return False
+
+        # Check if enemy is weak enough (absolute threshold)
+        if enemy.life > self.OPPORTUNISTIC_KILL_ENEMY_HP_THRESHOLD:
+            return False
+
+        # Check HP advantage
+        if self.hero.life < enemy.life + self.OPPORTUNISTIC_KILL_HP_ADVANTAGE:
+            return False
+
+        # Check if enemy has enough mines to be worth chasing
+        if enemy.mine_count < self.OPPORTUNISTIC_KILL_MIN_ENEMY_MINES:
+            return False
+
+        # Don't attack friendly bots
+        if self.FRIENDLY_FIRE_AVOIDANCE and enemy.id in self._friendly_hero_ids:
+            return False
+
+        return True
+
+    def _find_opportunistic_kill_target(self):
+        """Find the best enemy to hunt for an opportunistic kill.
+
+        Searches for weak enemies within range and returns the most valuable target.
+        Value is determined by: mines owned, then HP (lower is better), then distance.
+
+        Returns:
+            tuple: (enemy, distance) of best target, or (None, None) if no target.
+        """
+        if not self.OPPORTUNISTIC_KILLS_ENABLED:
+            return (None, None)
+
+        candidates = []
+
+        for enemy in self._get_enemies():
+            distance = vin.utils.distance_manhattan(
+                self.hero.x, self.hero.y, enemy.x, enemy.y
+            )
+
+            if self._is_enemy_worth_killing(enemy, distance):
+                # Score: prioritize by mines (desc), then low HP, then close distance
+                score = (enemy.mine_count, -enemy.life, -distance)
+                candidates.append((enemy, distance, score))
+
+        if not candidates:
+            return (None, None)
+
+        # Sort by score (highest first)
+        candidates.sort(key=lambda x: x[2], reverse=True)
+        best = candidates[0]
+        return (best[0], best[1])
+
+    def _go_to_enemy(self, enemy):
+        """Navigate toward an enemy hero to attack them.
+
+        Uses A* pathfinding to find the path to the enemy's position.
+
+        Args:
+            enemy: The enemy Hero to move toward.
+
+        Returns:
+            str: Direction to move ('North', 'South', 'East', 'West', 'Stay').
+        """
+        path = self.search.find_path(
+            (self.hero.x, self.hero.y),
+            (enemy.x, enemy.y)
+        )
+
+        if path and len(path) > 1:
+            next_pos = path[1]
+            return self._get_direction_to(next_pos[0], next_pos[1])
+
+        return "Stay"
+
+    # =========================================================================
     # PHASE 1: SURVIVAL - Nearby Tavern Optimization
     # =========================================================================
 
@@ -808,7 +964,8 @@ class CharmingMoleBotV1(BaseBot):
         1. Nearby tavern healing (if HP < NEARBY_TAVERN_HEAL_THRESHOLD)
         2. Flee from danger (if danger_level >= FLEE_DANGER_THRESHOLD)
         3. Go to tavern if low HP (phase-aware + DANGER_HP_MODIFIER)
-        4. Normal mining behavior (with MIN_TURNS_TO_HOLD_MINE check)
+        4. Opportunistic kill (if OPPORTUNISTIC_KILLS_ENABLED and weak enemy nearby)
+        5. Normal mining behavior (with MIN_TURNS_TO_HOLD_MINE check)
 
         Safety layer (if DANGER_CHECK_ENABLED):
         - Check if move walks into danger
@@ -850,9 +1007,18 @@ class CharmingMoleBotV1(BaseBot):
 
         if self.hero.life < hp_threshold and self.hero.gold >= 2:
             command = self._go_to_nearest_tavern()
-        else:
-            # Priority 4: Normal mining behavior (with mine value calculation)
-            command = self._go_to_nearest_mine()
+            self._prev_life = self.hero.life
+            return command
+
+        # Priority 4: Opportunistic kill - hunt weak enemies with mines
+        kill_target, kill_distance = self._find_opportunistic_kill_target()
+        if kill_target is not None:
+            command = self._go_to_enemy(kill_target)
+            self._prev_life = self.hero.life
+            return command
+
+        # Priority 5: Normal mining behavior (with mine value calculation)
+        command = self._go_to_nearest_mine()
 
         # Safety check: don't walk into enemies (configurable)
         if self.DANGER_CHECK_ENABLED and self.hero.life < self.DANGER_CHECK_HP_THRESHOLD:
